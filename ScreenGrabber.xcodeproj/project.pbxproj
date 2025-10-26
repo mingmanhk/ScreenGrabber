@@ -45,6 +45,11 @@
 			path = ScreenGrabberUITests;
 			sourceTree = "<group>";
 		};
+		991ECEB32EAB360500BB7684 /* Resources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,6 +80,7 @@
 		991ECE7E2EAB26F000BB7684 = {
 			isa = PBXGroup;
 			children = (
+				991ECEB32EAB360500BB7684 /* Resources */,
 				991ECE892EAB26F000BB7684 /* ScreenGrabber */,
 				991ECE992EAB26F500BB7684 /* ScreenGrabberTests */,
 				991ECEA32EAB26F500BB7684 /* ScreenGrabberUITests */,
@@ -109,6 +115,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				991ECE892EAB26F000BB7684 /* ScreenGrabber */,
+				991ECEB32EAB360500BB7684 /* Resources */,
 			);
 			name = ScreenGrabber;
 			packageProductDependencies = (
