@@ -453,23 +453,279 @@ Found a bug? [Open an issue](https://github.com/yourusername/ScreenGrabber/issue
 - Expected vs actual behavior
 - Screenshots if applicable
 
-## 🗺️ Roadmap
+## 🗺️ Roadmap & Enhancement Ideas
 
-### Version 2.0 (Coming Soon)
+### ✅ Version 2.0 Features (COMPLETED!)
+
+The following features are now fully implemented and available:
+
+- ✅ **Capture Delay Timer** - 3s, 5s, 10s countdown options
+- ✅ **Auto-Copy Filename/Path** - Automatic clipboard copying after capture
+- ✅ **Floating Thumbnail Preview** - Pin screenshots on screen with quick actions
+- ✅ **Region Presets** - Save and reuse custom capture areas
+- ✅ **Image Compression Profiles** - Multiple format options (PNG, JPEG, HEIF)
+- ✅ **Automatic Organization** - Smart folder rules for auto-sorting
+- ✅ **Quick Actions Bar** - Post-capture HUD with customizable actions
+- ✅ **Enhanced Settings Panel** - Comprehensive configuration options
+
+**See IMPLEMENTATION_GUIDE.md for complete documentation.**
+
+---
+
+### 🚀 Version 2.5 (Next - 6 months)
+- [ ] Quick Draw on Capture - Instant markup overlay
+- [ ] Smart Tags - Automatic and manual tagging system
+- [ ] Project Workspaces - Organize screenshots by project
+- [ ] Multi-Monitor Control - Advanced display selection
+- [ ] Auto-Trim / Smart Crop - Automatic edge cleanup
+
+### 🎯 Version 3.0 (Future - 12 months)
 - [ ] Cloud sync support
-- [ ] Advanced image editing
-- [ ] Screenshot annotations
-- [ ] OCR text extraction
+- [ ] Advanced image editing suite
+- [ ] Screenshot annotations with collaboration
+- [ ] OCR text extraction and search
 - [ ] Quick Share extensions
 - [ ] Keyboard shortcut manager
-
-### Future Plans
+- [ ] Screenshot versioning
+- [ ] API & AppleScript support
+### 🌟 Version 4.0+ (Long-term Vision)
 - [ ] iOS companion app
 - [ ] Team collaboration features
-- [ ] Video recording
-- [ ] GIF creation
+- [ ] Video recording integration
+- [ ] GIF creation from captures
 - [ ] Screenshot scheduling
 - [ ] Browser extension integration
+- [ ] Screenshot templates with device frames
+- [ ] Backup & sync options
+- [ ] Screenshot analytics dashboard
+- [ ] Custom watermarking
+
+### 🤖 Version 5.0 - AI-Powered Features (Future Vision)
+
+#### 21. AI OCR Everywhere
+Instantly extract text from any screenshot:
+- 📋 **Copy to Clipboard** - Extract and copy text instantly
+- 💾 **Save as TXT** - Export recognized text to file
+- 🔍 **Searchable Index** - Full-text search across all screenshots
+- 🔦 **Spotlight Integration** - Find screenshots by contained text
+
+**Example Use Cases:**
+- Extract code from tutorial screenshots
+- Copy text from error messages
+- Search for specific content in screenshots
+- Index all text for quick retrieval
+
+#### 22. AI Smart Naming
+AI analyzes screenshot content and suggests intelligent filenames:
+
+**Before:**
+```
+Screenshot_2025-02-20_19-32-12.png
+Screenshot_2025-02-20_19-33-45.png
+Screenshot_2025-02-20_19-35-21.png
+```
+
+**After:**
+```
+Xcode Build Error Log.png
+Safari_Apple Event Article.png
+Slack Message from John.png
+VSCode Python Function.png
+```
+
+**Features:**
+- 🧠 Context detection from visible text
+- 📱 App name recognition (Safari, Xcode, Slack, etc.)
+- 📝 Content type identification (error, article, message, code)
+- 🎯 Smart suggestions with confidence scores
+- ✏️ One-click accept or manual override
+
+#### 23. AI Redaction
+Automatically detect and redact sensitive information:
+
+**Auto-Detect:**
+- 📧 Email addresses
+- 👤 Faces and profile pictures
+- 🏠 Physical addresses
+- 🔒 Passwords and tokens
+- 🔑 API keys and secrets
+- 📁 File paths and system info
+- 🌐 IP addresses and URLs
+- 💳 Credit card numbers
+- 📞 Phone numbers
+
+**Privacy Modes:**
+- **Smart Blur** - Gaussian blur over sensitive areas
+- **Pixelate** - Pixelation effect
+- **Black Box** - Solid black rectangles
+- **Custom Color** - User-defined color overlay
+
+**Workflow:**
+1. Capture screenshot
+2. AI scans for sensitive data (instant)
+3. Preview with highlighted detections
+4. One-click to redact all or selective redaction
+5. Save redacted version
+
+**Use Cases:**
+- Share error logs without exposing credentials
+- Post tutorial screenshots safely
+- Bug reports with privacy protection
+- Public documentation from internal tools
+
+#### 24. AI Summaries (Super Useful!)
+Transform screenshots into actionable content:
+
+**Summary Types:**
+- 📝 **Quick Summary** - 2-3 sentence overview
+- ✅ **Action Items** - Extracted tasks and todos
+- 🐛 **Bug Report** - Formatted issue description
+- 📖 **Documentation** - Tutorial-style explanation
+- 💡 **Key Points** - Bullet-point highlights
+
+**Example Workflows:**
+
+**Error Screenshot:**
+```
+Input: Screenshot of Xcode error
+AI Summary: "The error indicates missing Info.plist key for 
+NSCameraUsageDescription. Add camera permission description 
+to resolve."
+
+Action Items:
+• Open Info.plist
+• Add NSCameraUsageDescription key
+• Provide user-facing description
+```
+
+**Meeting Notes Screenshot:**
+```
+Input: Screenshot of Slack discussion
+AI Summary: "Team discussed new feature requirements. John 
+suggested API-first approach. Sarah will provide designs by Friday."
+
+Action Items:
+• John: Draft API specification by Wed
+• Sarah: Deliver UI designs by Fri
+• Team: Review meeting next Monday
+```
+
+**Code Review Screenshot:**
+```
+Input: Screenshot of code with comments
+Bug Report Format:
+---
+Title: Memory leak in image processing
+Description: ImageCache retains references after deallocation
+Steps to Reproduce: [extracted from screenshot]
+Expected: Immediate release
+Actual: Retained until app restart
+---
+```
+
+**Voice Commands:**
+- "Summarize last screenshot"
+- "Extract action items"
+- "Create bug report from screenshot"
+- "Generate documentation from this capture"
+
+#### 25. AI Compare Screenshots
+Intelligent visual comparison for design and development:
+
+**Comparison Modes:**
+- 🎨 **UI Differences** - Highlight layout and style changes
+- 🔍 **Pixel-Perfect** - Detect any pixel-level changes
+- 📊 **Side-by-Side** - Before/after comparison view
+- 🎭 **Overlay** - Translucent overlay showing differences
+- 🎬 **Animation** - Smooth transition between versions
+
+**Features:**
+- **Difference Heatmap** - Color-coded change intensity
+- **Change Percentage** - Quantify how much changed
+- **Element Detection** - Identify moved/added/removed elements
+- **Smart Alignment** - Auto-align similar screenshots
+- **Export Comparison** - Save annotated comparison image
+
+**Use Cases:**
+- **UI/UX Design:** Track design iterations
+- **Code Changes:** Visual diff of rendered output
+- **Bug Tracking:** Show before/after fix
+- **A/B Testing:** Compare design variants
+- **Regression Testing:** Detect unintended changes
+
+**Workflow Example:**
+```
+1. Select two screenshots to compare
+2. AI analyzes and aligns images
+3. View highlighted differences
+4. Export comparison with annotations
+5. Share with team or add to documentation
+```
+
+**Advanced Features:**
+- **Smart Ignore Zones** - Exclude timestamps, dynamic content
+- **Semantic Comparison** - Understand functional vs. visual changes
+- **Timeline View** - Compare multiple versions chronologically
+- **Auto-Regression Detection** - Flag unexpected UI changes
+
+---
+
+### 🎯 AI Feature Implementation Roadmap
+
+**Phase 1: Foundation (v5.0)**
+1. ✅ OCR Integration (Vision framework)
+2. ✅ Basic text extraction
+3. ✅ Searchable index
+
+**Phase 2: Intelligence (v5.5)**
+1. Smart naming with ML
+2. Content categorization
+3. Sensitive data detection
+
+**Phase 3: Advanced AI (v6.0)**
+1. Natural language summaries
+2. Action item extraction
+3. Bug report generation
+
+**Phase 4: Visual Intelligence (v6.5)**
+1. Screenshot comparison
+2. UI diff detection
+3. Regression testing
+
+---
+
+### 💡 AI Features Note
+
+These AI-powered features will leverage:
+- 🧠 **Apple Vision Framework** - On-device OCR and text recognition
+- 🤖 **Core ML** - Local machine learning models
+- 🔒 **Privacy First** - All processing happens on-device
+- ⚡ **Apple Neural Engine** - Hardware-accelerated AI
+- 📱 **Apple Intelligence** - Integration with system AI features
+
+**No cloud processing required - your data stays on your Mac!**
+
+
+### 💡 Community Feature Voting
+
+Want to influence our roadmap? 
+- 🗳️ [Vote on features](https://github.com/yourusername/ScreenGrabber/discussions/categories/feature-requests)
+- 💬 [Join discussions](https://github.com/yourusername/ScreenGrabber/discussions)
+- 🐛 [Report bugs](https://github.com/yourusername/ScreenGrabber/issues)
+- 🤝 [Contribute code](https://github.com/yourusername/ScreenGrabber/pulls)
+
+---
+
+## 📈 Recent Updates
+
+**Version 2.0 - Enhanced Edition** (November 2025)
+- ✨ Added 8 major new features
+- 🎨 Redesigned settings interface
+- ⚡ Performance improvements
+- 📚 Comprehensive documentation
+- 🐛 Bug fixes and stability improvements
+
+---
 
 ## 📊 Stats
 
