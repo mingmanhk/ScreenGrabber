@@ -190,7 +190,9 @@ struct RegionPresetsView: View {
                             // Use preset action
                             captureWithPreset(preset)
                         } onDelete: {
-                            presetsManager.deletePreset(preset)
+                            Task {
+                                await presetsManager.deletePreset(preset)
+                            }
                         }
                     }
                 }
@@ -281,8 +283,10 @@ struct AddPresetSheet: View {
                 Button("Save") {
                     if let w = Double(width), let h = Double(height), !presetName.isEmpty {
                         let preset = RegionPreset(name: presetName, x: 0, y: 0, width: w, height: h)
-                        presetsManager.addPreset(preset)
-                        dismiss()
+                        Task {
+                            await presetsManager.addPreset(preset)
+                            dismiss()
+                        }
                     }
                 }
                 .keyboardShortcut(.defaultAction)
@@ -304,7 +308,7 @@ struct FloatingThumbnailSettingsView: View {
             SectionHeaderView(title: "Floating Thumbnail", icon: "photo.on.rectangle.angled")
             
             Toggle("Show floating preview after capture", isOn: $enabled)
-                .onChange(of: enabled) { newValue in
+                .onChange(of: enabled) { _, newValue in
                     FloatingThumbnailSettings.enabled = newValue
                 }
             
@@ -323,7 +327,7 @@ struct FloatingThumbnailSettingsView: View {
                         Text("30s")
                             .font(.caption)
                     }
-                    .onChange(of: autoDismissDelay) { newValue in
+                    .onChange(of: autoDismissDelay) { _, newValue in
                         FloatingThumbnailSettings.autoDismissDelay = newValue
                     }
                     
@@ -367,8 +371,10 @@ struct QuickActionsConfigView: View {
                         
                         Toggle("", isOn: $action.enabled)
                             .labelsHidden()
-                            .onChange(of: action.enabled) { _ in
-                                actionsManager.saveActions()
+                            .onChange(of: action.enabled) {
+                                Task {
+                                    await actionsManager.saveActions()
+                                }
                             }
                     }
                     .padding(.horizontal, 14)

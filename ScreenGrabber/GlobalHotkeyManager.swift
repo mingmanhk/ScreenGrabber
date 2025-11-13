@@ -17,13 +17,15 @@ class GlobalHotkeyManager {
     
     private init() {}
     
-    func registerHotkey(_ hotkey: String, action: @escaping () -> Void) {
+    /// Registers a global hotkey.
+    /// - Returns: `true` if the hotkey was registered successfully, `false` otherwise (e.g., due to a conflict).
+    func registerHotkey(_ hotkey: String, action: @escaping () -> Void) -> Bool {
         // Unregister existing hotkey first
         unregisterHotkey()
         
         guard let (keyCode, modifiers) = parseHotkey(hotkey) else {
             print("Invalid hotkey format: \(hotkey)")
-            return
+            return false
         }
         
         self.onHotkeyPressed = action
@@ -46,7 +48,8 @@ class GlobalHotkeyManager {
         
         if result != noErr {
             print("Failed to install event handler: \(result)")
-            return
+            unregisterHotkey() // Clean up partially installed handler
+            return false
         }
         
         // Register the hotkey
@@ -62,9 +65,15 @@ class GlobalHotkeyManager {
         
         if registerResult != noErr {
             print("Failed to register hotkey: \(registerResult)")
-        } else {
-            print("Successfully registered hotkey: \(hotkey)")
+            if registerResult == eventHotKeyExistsErr {
+                print("Hotkey conflict: The hotkey '\(hotkey)' is already in use by another application.")
+            }
+            unregisterHotkey() // Clean up
+            return false
         }
+        
+        print("Successfully registered hotkey: \(hotkey)")
+        return true
     }
     
     func unregisterHotkey() {

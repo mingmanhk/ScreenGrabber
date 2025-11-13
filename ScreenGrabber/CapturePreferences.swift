@@ -109,36 +109,51 @@ class RegionPresetsManager: ObservableObject {
     private let presetsKey = "regionPresets"
     
     init() {
-        loadPresets()
+        Task {
+            await loadPresets()
+        }
     }
     
-    func loadPresets() {
-        if let data = UserDefaults.standard.data(forKey: presetsKey),
-           let decoded = try? JSONDecoder().decode([RegionPreset].self, from: data) {
+    @MainActor
+    func loadPresets() async {
+        guard let data = UserDefaults.standard.data(forKey: presetsKey) else { return }
+        do {
+            let decoded = try await Task.detached {
+                try JSONDecoder().decode([RegionPreset].self, from: data)
+            }.value
             presets = decoded
+        } catch {
+            print("Failed to decode presets: \(error)")
         }
     }
     
-    func savePresets() {
-        if let encoded = try? JSONEncoder().encode(presets) {
-            UserDefaults.standard.set(encoded, forKey: presetsKey)
-        }
+    func savePresets() async {
+        let presetsToSave = self.presets
+        let key = self.presetsKey
+        await Task.detached {
+            do {
+                let encoded = try JSONEncoder().encode(presetsToSave)
+                UserDefaults.standard.set(encoded, forKey: key)
+            } catch {
+                print("Failed to encode presets: \(error)")
+            }
+        }.value
     }
     
-    func addPreset(_ preset: RegionPreset) {
+    func addPreset(_ preset: RegionPreset) async {
         presets.append(preset)
-        savePresets()
+        await savePresets()
     }
     
-    func deletePreset(_ preset: RegionPreset) {
+    func deletePreset(_ preset: RegionPreset) async {
         presets.removeAll { $0.id == preset.id }
-        savePresets()
+        await savePresets()
     }
     
-    func updatePreset(_ preset: RegionPreset) {
+    func updatePreset(_ preset: RegionPreset) async {
         if let index = presets.firstIndex(where: { $0.id == preset.id }) {
             presets[index] = preset
-            savePresets()
+            await savePresets()
         }
     }
 }
@@ -198,33 +213,49 @@ class OrganizationRulesManager: ObservableObject {
     private let rulesKey = "organizationRules"
     
     init() {
-        loadRules()
-        if rules.isEmpty {
-            addDefaultRules()
+        Task {
+            await loadRules()
+            if rules.isEmpty {
+                await addDefaultRules()
+            }
         }
     }
     
-    private func addDefaultRules() {
+    @MainActor
+    private func addDefaultRules() async {
         rules = [
             OrganizationRule(ruleName: "Wide Screenshots", ruleType: .wideScreenshot, folderName: "Wide"),
             OrganizationRule(ruleName: "Small Snippets", ruleType: .smallSnippet, folderName: "Snippets"),
             OrganizationRule(ruleName: "Full Screens", ruleType: .fullScreen, folderName: "FullScreens"),
             OrganizationRule(ruleName: "Window Captures", ruleType: .windowCapture, folderName: "Windows")
         ]
-        saveRules()
+        await saveRules()
     }
     
-    func loadRules() {
-        if let data = UserDefaults.standard.data(forKey: rulesKey),
-           let decoded = try? JSONDecoder().decode([OrganizationRule].self, from: data) {
+    @MainActor
+    func loadRules() async {
+        guard let data = UserDefaults.standard.data(forKey: rulesKey) else { return }
+        do {
+            let decoded = try await Task.detached {
+                try JSONDecoder().decode([OrganizationRule].self, from: data)
+            }.value
             rules = decoded
+        } catch {
+            print("Failed to decode organization rules: \(error)")
         }
     }
     
-    func saveRules() {
-        if let encoded = try? JSONEncoder().encode(rules) {
-            UserDefaults.standard.set(encoded, forKey: rulesKey)
-        }
+    func saveRules() async {
+        let rulesToSave = self.rules
+        let key = self.rulesKey
+        await Task.detached {
+            do {
+                let encoded = try JSONEncoder().encode(rulesToSave)
+                UserDefaults.standard.set(encoded, forKey: key)
+            } catch {
+                print("Failed to encode organization rules: \(error)")
+            }
+        }.value
     }
     
     func determineFolder(for imageSize: CGSize, captureType: String) -> String? {
@@ -309,13 +340,16 @@ class QuickActionsManager: ObservableObject {
     private let actionsKey = "quickActions"
     
     init() {
-        loadActions()
-        if actions.isEmpty {
-            addDefaultActions()
+        Task {
+            await loadActions()
+            if actions.isEmpty {
+                await addDefaultActions()
+            }
         }
     }
     
-    private func addDefaultActions() {
+    @MainActor
+    private func addDefaultActions() async {
         actions = [
             QuickAction(name: "Copy to Clipboard", icon: "doc.on.clipboard", action: .copyToClipboard),
             QuickAction(name: "Open in Preview", icon: "eye", action: .openInPreview),
@@ -324,19 +358,32 @@ class QuickActionsManager: ObservableObject {
             QuickAction(name: "Share", icon: "square.and.arrow.up", action: .share),
             QuickAction(name: "Delete", icon: "trash", action: .delete)
         ]
-        saveActions()
+        await saveActions()
     }
     
-    func loadActions() {
-        if let data = UserDefaults.standard.data(forKey: actionsKey),
-           let decoded = try? JSONDecoder().decode([QuickAction].self, from: data) {
+    @MainActor
+    func loadActions() async {
+        guard let data = UserDefaults.standard.data(forKey: actionsKey) else { return }
+        do {
+            let decoded = try await Task.detached {
+                try JSONDecoder().decode([QuickAction].self, from: data)
+            }.value
             actions = decoded
+        } catch {
+            print("Failed to decode quick actions: \(error)")
         }
     }
     
-    func saveActions() {
-        if let encoded = try? JSONEncoder().encode(actions) {
-            UserDefaults.standard.set(encoded, forKey: actionsKey)
-        }
+    func saveActions() async {
+        let actionsToSave = self.actions
+        let key = self.actionsKey
+        await Task.detached {
+            do {
+                let encoded = try JSONEncoder().encode(actionsToSave)
+                UserDefaults.standard.set(encoded, forKey: key)
+            } catch {
+                print("Failed to encode quick actions: \(error)")
+            }
+        }.value
     }
 }

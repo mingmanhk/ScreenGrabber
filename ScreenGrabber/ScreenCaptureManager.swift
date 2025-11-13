@@ -722,7 +722,7 @@ class ScreenCaptureManager {
     }
     
     // MARK: - Notifications
-    private func showNotification(title: String, message: String) {
+    func showNotification(title: String, message: String) {
         let center = UNUserNotificationCenter.current()
         
         // Request permission if not already granted
@@ -943,6 +943,13 @@ class ScreenCaptureManager {
             message: "Please enable Screen Recording permission in System Preferences > Security & Privacy > Privacy > Screen Recording"
         )
     }
+    
+    /// Saves a screenshot record to the database or handles metadata logging.
+    private func saveScreenshotRecord(filePath: URL, timestamp: Date, method: ScreenOption, openOption: OpenOption, modelContext: ModelContext?) {
+        // TODO: Implement database persistence if desired, using modelContext and your data model.
+        print("[DB] saveScreenshotRecord called with:\n  Path: \(filePath.path)\n  Timestamp: \(timestamp)\n  Method: \(method.displayName)\n  OpenOption: \(openOption.displayName)")
+        // This is a placeholder to resolve the build error.
+    }
 }
 
 // MARK: - DateFormatter Extension
@@ -953,4 +960,3 @@ extension DateFormatter {
         return formatter
     }()
 }
-

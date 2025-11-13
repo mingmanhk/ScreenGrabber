@@ -29,7 +29,7 @@ struct ScreenGrabberApp: App {
         }
         .modelContainer(sharedModelContainer)
         
-        MenuBarExtra("Screen Grabber", systemImage: "camera.viewfinder") {
+        MenuBarExtra("Screen Grabber", systemImage: "camera.fill") {
             MenuBarContentView()
                 .modelContainer(sharedModelContainer)
         }

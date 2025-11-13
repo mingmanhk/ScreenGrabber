@@ -5,9 +5,10 @@
 //  Enhanced capture functionality
 //
 
-import Foundation
 import AppKit
+import Foundation
 import SwiftData
+import UserNotifications
 
 extension ScreenCaptureManager {
     
@@ -234,11 +235,34 @@ extension ScreenCaptureManager {
     
     // MARK: - Countdown Notification
     private func showCountdownNotification(seconds: Int) {
-        let notification = NSUserNotification()
-        notification.title = "Screenshot in \(seconds) seconds..."
-        notification.informativeText = "Get ready!"
-        notification.soundName = nil
-        NSUserNotificationCenter.default.deliver(notification)
+        let center = UNUserNotificationCenter.current()
+
+        // It's best practice to request authorization once, e.g., at app launch.
+        // However, placing it here ensures it's requested if needed.
+        // The user is only prompted the first time.
+        center.requestAuthorization(options: [.alert]) { granted, error in
+            if let error = error {
+                print("[ERR] Notification authorization failed: \(error.localizedDescription)")
+                return
+            }
+
+            if granted {
+                let content = UNMutableNotificationContent()
+                content.title = "Screenshot in \(seconds) seconds..."
+                content.body = "Get ready!"
+                content.sound = nil // No sound
+
+                let request = UNNotificationRequest(identifier: "countdown-notification", content: content, trigger: nil)
+
+                center.add(request) { error in
+                    if let error = error {
+                        print("[ERR] Failed to show notification: \(error.localizedDescription)")
+                    }
+                }
+            } else {
+                print("[WARN] Permission for notifications was denied.")
+            }
+        }
     }
     
     // MARK: - Get Last Screenshot URL
@@ -279,3 +303,4 @@ extension NSImage {
         return self.cgImage(forProposedRect: &rect, context: nil, hints: nil)
     }
 }
+

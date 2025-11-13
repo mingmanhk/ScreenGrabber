@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import UserNotifications
 
 // MARK: - Quick Actions Bar Window
 class QuickActionsBarWindow: NSPanel {
@@ -54,7 +55,7 @@ struct QuickActionsBarView: View {
     @State private var showingAnnotator = false
     
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             // Thumbnail preview
             Image(nsImage: image)
                 .resizable()
@@ -64,31 +65,35 @@ struct QuickActionsBarView: View {
                 .cornerRadius(8)
                 .padding(8)
             
-            // Divider
-            Rectangle()
-                .fill(Color.white.opacity(0.2))
-                .frame(width: 1)
+            VerticalDivider()
             
             // Actions
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     ForEach(actionsManager.actions.filter { $0.enabled }) { action in
                         QuickActionButtonView(action: action) {
-                            performAction(action.action)
+                            // Run the action in an async Task
+                            Task {
+                                await performAction(action.action)
+                            }
                         }
                     }
                 }
                 .padding(.horizontal, 12)
             }
             
+            VerticalDivider()
+            
             // Close button
             Button(action: { window?.orderOut(nil) }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
+                Image(systemName: "xmark")
+                    .font(.title3.weight(.medium))
                     .foregroundColor(.white.opacity(0.7))
-                    .padding(12)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .padding(.trailing, 8)
         }
         .frame(height: 80)
         .background(
@@ -109,54 +114,60 @@ struct QuickActionsBarView: View {
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
     }
     
-    private func performAction(_ action: QuickAction.ActionType) {
+    private func performAction(_ action: QuickAction.ActionType) async {
         switch action {
         case .copyToClipboard:
-            copyToClipboard()
+            await copyToClipboard()
         case .openInPreview:
             openInPreview()
         case .delete:
-            deleteFile()
+            await deleteFile()
         case .share:
-            shareFile()
+            shareFile() // NSSharingServicePicker needs to be main-thread and synchronous
         case .annotate:
             showingAnnotator = true
         case .pin:
             pinToScreen()
         case .copyFilename:
-            copyFilename()
+            await copyFilename()
         case .copyPath:
-            copyPath()
+            await copyPath()
         case .showInFinder:
             showInFinder()
         }
     }
     
-    private func copyToClipboard() {
+    private func copyToClipboard() async {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.writeObjects([image])
-        showNotification(title: "Copied", message: "Image copied to clipboard")
+        await showNotification(title: "Copied", message: "Image copied to clipboard")
         window?.orderOut(nil)
     }
     
     private func openInPreview() {
-        NSWorkspace.shared.open(imageURL)
+        _ = NSWorkspace.shared.open(imageURL)
         window?.orderOut(nil)
     }
     
-    private func deleteFile() {
+    private func deleteFile() async {
         do {
-            try FileManager.default.removeItem(at: imageURL)
-            showNotification(title: "Deleted", message: "Screenshot deleted")
+            // Perform blocking file I/O in a background task
+            try await Task.detached {
+                try FileManager.default.removeItem(at: imageURL)
+            }.value
+            
+            await showNotification(title: "Deleted", message: "Screenshot deleted")
             window?.orderOut(nil)
         } catch {
             print("Delete error: \(error)")
+            // Consider showing an error alert to the user
         }
     }
     
     private func shareFile() {
         let picker = NSSharingServicePicker(items: [imageURL])
+        // This view-related operation should be on the main thread.
         if let view = window?.contentView {
             picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
         }
@@ -167,19 +178,19 @@ struct QuickActionsBarView: View {
         window?.orderOut(nil)
     }
     
-    private func copyFilename() {
+    private func copyFilename() async {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(imageURL.lastPathComponent, forType: .string)
-        showNotification(title: "Copied", message: "Filename copied")
+        await showNotification(title: "Copied", message: "Filename copied")
         window?.orderOut(nil)
     }
     
-    private func copyPath() {
+    private func copyPath() async {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(imageURL.path, forType: .string)
-        showNotification(title: "Copied", message: "File path copied")
+        await showNotification(title: "Copied", message: "File path copied")
         window?.orderOut(nil)
     }
     
@@ -188,11 +199,29 @@ struct QuickActionsBarView: View {
         window?.orderOut(nil)
     }
     
-    private func showNotification(title: String, message: String) {
-        let notification = NSUserNotification()
-        notification.title = title
-        notification.informativeText = message
-        NSUserNotificationCenter.default.deliver(notification)
+    private func showNotification(title: String, message: String) async {
+        do {
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            
+            if settings.authorizationStatus != .authorized {
+                guard try await center.requestAuthorization(options: [.alert]) else {
+                    print("Notification permission was not granted.")
+                    return
+                }
+            }
+            
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = message
+            
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+            
+            try await center.add(request)
+        } catch {
+            print("Error delivering notification: \(error.localizedDescription)")
+        }
     }
 }
 
@@ -205,30 +234,36 @@ struct QuickActionButtonView: View {
     
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 4) {
-                Image(systemName: action.icon)
-                    .font(.title3)
-                    .foregroundColor(.white)
-                
-                Text(action.name)
-                    .font(.caption2)
-                    .foregroundColor(.white.opacity(0.8))
-                    .lineLimit(1)
-            }
-            .frame(width: 70, height: 60)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isHovering ? Color.white.opacity(0.2) : Color.clear)
-            )
+            Image(systemName: action.icon)
+                .font(.title2)
+                .foregroundColor(.white)
+                .frame(width: 44, height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isHovering ? Color.white.opacity(0.25) : Color.white.opacity(0.1))
+                )
+                .scaleEffect(isHovering ? 1.1 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                 isHovering = hovering
             }
         }
+        .help(action.name) // This adds a tooltip on hover
     }
 }
+
+// MARK: - UI Helper
+struct VerticalDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.2))
+            .frame(width: 1)
+            .padding(.vertical, 16)
+    }
+}
+
 
 // MARK: - Quick Actions Manager
 class QuickActionsBarManager {
