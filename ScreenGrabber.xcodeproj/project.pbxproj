@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		99ACFB572EC5866D00B7C107 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 99ACFB472EC5866D00B7C107 /* README.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		991ECE972EAB26F500BB7684 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		991ECE872EAB26F000BB7684 /* ScreenGrabber.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenGrabber.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		991ECE962EAB26F500BB7684 /* ScreenGrabberTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenGrabberTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		991ECEA02EAB26F500BB7684 /* ScreenGrabberUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenGrabberUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		99ACFB472EC5866D00B7C107 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -85,6 +90,7 @@
 				991ECE992EAB26F500BB7684 /* ScreenGrabberTests */,
 				991ECEA32EAB26F500BB7684 /* ScreenGrabberUITests */,
 				991ECE882EAB26F000BB7684 /* Products */,
+				99ACFB472EC5866D00B7C107 /* README.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -219,6 +225,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				99ACFB572EC5866D00B7C107 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
