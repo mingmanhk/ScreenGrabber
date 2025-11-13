@@ -388,7 +388,7 @@ struct ScreenshotThumbnail: View {
         DispatchQueue.global(qos: .background).async {
             if let image = NSImage(contentsOf: fileURL) {
                 let thumbnailSize = NSSize(width: 120, height: 80)
-                let thumbnail = image.resized(to: thumbnailSize)
+                let thumbnail = image.resizedForThumbnail(to: thumbnailSize)
                 
                 DispatchQueue.main.async {
                     self.thumbnail = thumbnail
@@ -467,8 +467,9 @@ extension MainAppView {
 
 // MARK: - NSImage Extension
 
+// Note: Named uniquely to avoid duplicate extensions across the project.
 extension NSImage {
-    func resized(to targetSize: NSSize) -> NSImage {
+    func resizedForThumbnail(to targetSize: NSSize) -> NSImage {
         let newImage = NSImage(size: targetSize)
         newImage.lockFocus()
         draw(in: NSRect(origin: .zero, size: targetSize))

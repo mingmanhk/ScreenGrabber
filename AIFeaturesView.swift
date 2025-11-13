@@ -25,8 +25,8 @@ struct AIFeaturesSettingsView: View {
                 SectionHeaderView(title: "AI OCR", icon: "doc.text.viewfinder")
                 
                 Toggle("Extract text from screenshots", isOn: $ocrEnabled)
-                    .onChange(of: ocrEnabled) { value in
-                        UserDefaults.standard.set(value, forKey: "ocrEnabled")
+                    .onChange(of: ocrEnabled) { oldValue, newValue in
+                        UserDefaults.standard.set(newValue, forKey: "ocrEnabled")
                     }
                 
                 if ocrEnabled {
@@ -50,8 +50,8 @@ struct AIFeaturesSettingsView: View {
                 SectionHeaderView(title: "AI Smart Naming", icon: "text.badge.checkmark")
                 
                 Toggle("Suggest intelligent filenames", isOn: $smartNamingEnabled)
-                    .onChange(of: smartNamingEnabled) { value in
-                        UserDefaults.standard.set(value, forKey: "smartNamingEnabled")
+                    .onChange(of: smartNamingEnabled) { oldValue, newValue in
+                        UserDefaults.standard.set(newValue, forKey: "smartNamingEnabled")
                     }
                 
                 if smartNamingEnabled {
@@ -86,8 +86,8 @@ struct AIFeaturesSettingsView: View {
                 SectionHeaderView(title: "AI Redaction", icon: "eye.trianglebadge.exclamationmark")
                 
                 Toggle("Auto-detect sensitive information", isOn: $autoRedactionEnabled)
-                    .onChange(of: autoRedactionEnabled) { value in
-                        UserDefaults.standard.set(value, forKey: "autoRedactionEnabled")
+                    .onChange(of: autoRedactionEnabled) { oldValue, newValue in
+                        UserDefaults.standard.set(newValue, forKey: "autoRedactionEnabled")
                     }
                 
                 if autoRedactionEnabled {
@@ -524,3 +524,4 @@ struct CheckboxRow: View {
         .padding()
         .frame(width: 400)
 }
+

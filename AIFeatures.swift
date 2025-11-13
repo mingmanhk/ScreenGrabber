@@ -10,9 +10,12 @@ import Vision
 import CoreML
 import NaturalLanguage
 import AppKit
+import Combine
+import UserNotifications
 
 // MARK: - AI OCR Manager
 class OCRManager: ObservableObject {
+    
     static let shared = OCRManager()
     
     @Published var lastExtractedText: String = ""
@@ -485,7 +488,7 @@ enum SensitiveDataType: String, CaseIterable {
     case creditCard = "Credit Card"
 }
 
-enum RedactionMode {
+enum RedactionMode: Hashable {
     case blur
     case pixelate
     case blackBox
@@ -507,16 +510,43 @@ enum OCRError: LocalizedError {
 }
 
 // MARK: - Notification Manager
-class NotificationManager {
+class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
-    
-    private init() {}
-    
+
+    private override init() {
+        super.init()
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        // Request authorization once at initialization time
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                print("[Notifications] Authorization error: \(error)")
+            } else {
+                print("[Notifications] Authorization granted: \(granted)")
+            }
+        }
+    }
+
     func show(title: String, message: String) {
-        let notification = NSUserNotification()
-        notification.title = title
-        notification.informativeText = message
-        notification.soundName = NSUserNotificationDefaultSoundName
-        NSUserNotificationCenter.default.deliver(notification)
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = message
+        content.sound = .default
+
+        // Deliver immediately with a minimal delay to ensure scheduling succeeds
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("[Notifications] Failed to schedule: \(error)")
+            }
+        }
+    }
+
+    // Ensure notifications can be shown while app is in the foreground on macOS
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound, .list])
     }
 }
+

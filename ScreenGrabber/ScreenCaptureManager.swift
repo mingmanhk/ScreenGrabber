@@ -594,28 +594,7 @@ class ScreenCaptureManager {
         }
     }
     
-    private func saveScreenshotRecord(filePath: URL, timestamp: Date, method: ScreenOption, openOption: OpenOption, modelContext: ModelContext?) {
-        // Save screenshot record to database
-        if let context = modelContext {
-            let screenshot = Screenshot(
-                filename: filePath.lastPathComponent,
-                filePath: filePath.path,
-                captureDate: timestamp,
-                captureMethod: method.rawValue,
-                openMethod: openOption.rawValue
-            )
-            context.insert(screenshot)
-            
-            do {
-                try context.save()
-                print("Successfully saved screenshot record to database")
-            } catch {
-                print("Failed to save screenshot record: \(error)")
-            }
-        }
-    }
-    
-    private func executeScreenCapture(arguments: [String], completion: @escaping (Bool) -> Void) {
+    func executeScreenCapture(arguments: [String], completion: @escaping (Bool) -> Void) {
         print("[CAPTURE] Executing screencapture with arguments: \(arguments)")
         
         let task = Process()
@@ -974,3 +953,4 @@ extension DateFormatter {
         return formatter
     }()
 }
+

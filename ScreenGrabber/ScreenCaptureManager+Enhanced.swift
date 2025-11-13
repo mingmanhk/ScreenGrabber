@@ -71,7 +71,7 @@ extension ScreenCaptureManager {
             filePath.path
         ]
         
-        executeScreenCapture(arguments: arguments) { [weak self] success in
+        executeScreenCapture(arguments: arguments) { [weak self] (success: Bool) in
             if success {
                 self?.postCaptureActions(fileURL: filePath, openOption: openOption, modelContext: modelContext)
             }
