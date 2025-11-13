@@ -161,7 +161,7 @@ struct MenuBarContentView: View {
                 Spacer()
                 
                 Button(action: {
-                    NSApp.sendAction(Selector(("showWindow:")), to: nil, from: nil)
+                    NSApp.sendAction(#selector(NSWindowController.showWindow(_:)), to: nil, from: nil)
                     if let mainApp = NSApp.windows.first(where: { $0.windowNumber > 0 && $0.isVisible }) {
                          mainApp.makeKeyAndOrderFront(nil)
                      }

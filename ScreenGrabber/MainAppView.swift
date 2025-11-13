@@ -126,9 +126,7 @@ struct MainAppView: View {
                     .buttonStyle(.plain)
                     .foregroundColor(.primary)
                     .sheet(isPresented: $showHotkeySheet) {
-                        HotkeyConfigView(currentHotkey: $currentHotkey) { newHotkey in
-                            setupGlobalHotkey(hotkey: newHotkey)
-                        }
+                        MenuBarContentView.HotkeyConfigView(currentHotkey: $currentHotkey, onSave: setupGlobalHotkey)
                     }
                     
                     Button(action: { openScreenGrabberFolder() }) {
@@ -413,6 +411,22 @@ struct ScreenshotThumbnail: View {
     }
 }
 
+// MARK: - Type Extensions
+extension ScreenOption {
+    var shortcut: String {
+        switch self {
+        case .selectedArea:
+            return "⌘⇧4"
+        case .window:
+            return "⌘⇧4, then Space"
+        case .fullScreen:
+            return "⌘⇧3"
+        case .scrollingCapture:
+            return "Custom Action"
+        }
+    }
+}
+
 // MARK: - Actions Extension
 
 extension MainAppView {
@@ -448,15 +462,19 @@ extension MainAppView {
         }
     }
     
-    private func setupGlobalHotkey(hotkey: String) {
-        UserDefaults.standard.set(hotkey, forKey: "grabScreenHotkey")
-        currentHotkey = hotkey
-        
-        GlobalHotkeyManager.shared.registerHotkey(hotkey) {
+    private func setupGlobalHotkey(hotkey: String) -> Bool {
+        let success = GlobalHotkeyManager.shared.registerHotkey(hotkey) {
             DispatchQueue.main.async {
                 self.quickCapture()
             }
         }
+
+        if success {
+            UserDefaults.standard.set(hotkey, forKey: "grabScreenHotkey")
+            currentHotkey = hotkey
+        }
+        
+        return success
     }
     
     private func openScreenGrabberFolder() {
@@ -480,5 +498,5 @@ extension NSImage {
 
 #Preview {
     MainAppView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(for: Screenshot.self, inMemory: true)
 }
