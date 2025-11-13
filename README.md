@@ -21,8 +21,6 @@ ScreenGrabber is a native macOS application that revolutionizes how you capture,
 
 ## ✨ Features
 
-## ✨ Features
-
 ### 🎯 **Smart Screenshot Capture**
 - **Multiple Capture Methods:**
   - 📐 **Selected Area** - Precisely capture any region of your screen
@@ -454,23 +452,6 @@ Found a bug? [Open an issue](https://github.com/yourusername/ScreenGrabber/issue
 - Screenshots if applicable
 
 ## 🗺️ Roadmap & Enhancement Ideas
-
-### ✅ Version 2.0 Features (COMPLETED!)
-
-The following features are now fully implemented and available:
-
-- ✅ **Capture Delay Timer** - 3s, 5s, 10s countdown options
-- ✅ **Auto-Copy Filename/Path** - Automatic clipboard copying after capture
-- ✅ **Floating Thumbnail Preview** - Pin screenshots on screen with quick actions
-- ✅ **Region Presets** - Save and reuse custom capture areas
-- ✅ **Image Compression Profiles** - Multiple format options (PNG, JPEG, HEIF)
-- ✅ **Automatic Organization** - Smart folder rules for auto-sorting
-- ✅ **Quick Actions Bar** - Post-capture HUD with customizable actions
-- ✅ **Enhanced Settings Panel** - Comprehensive configuration options
-
-**See IMPLEMENTATION_GUIDE.md for complete documentation.**
-
----
 
 ### 🚀 Version 2.5 (Next - 6 months)
 - [ ] Quick Draw on Capture - Instant markup overlay
