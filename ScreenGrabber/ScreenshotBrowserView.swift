@@ -460,19 +460,25 @@ struct ScreenshotBrowserView: View {
                     Button(action: quickCapture) {
                         HStack(spacing: 12) {
                             ZStack {
+                                // High-contrast chip to ensure readability on any backdrop
                                 Circle()
                                     .fill(
                                         LinearGradient(
-                                            colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                                            colors: [Color.black.opacity(0.35), Color.black.opacity(0.2)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
                                     )
                                     .frame(width: 38, height: 38)
-                                
+                                    .overlay(
+                                        Circle()
+                                            .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5)
+                                    )
+
                                 Image(systemName: "camera.fill")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
+                                    .accessibilityLabel("Take Screenshot")
                             }
                             
                             Text("Capture Screenshot")
@@ -609,20 +615,79 @@ struct ScreenshotBrowserView: View {
         }
     }
     
-    private func setupGlobalHotkey(hotkey: String) {
-        UserDefaults.standard.set(hotkey, forKey: "grabScreenHotkey")
-        currentHotkey = hotkey
-        
-        GlobalHotkeyManager.shared.registerHotkey(hotkey) {
+    private func setupGlobalHotkey(hotkey: String) -> Bool {
+        let success = GlobalHotkeyManager.shared.registerHotkey(hotkey) {
             DispatchQueue.main.async {
                 self.quickCapture()
             }
         }
+        
+        if success {
+            UserDefaults.standard.set(hotkey, forKey: "grabScreenHotkey")
+            currentHotkey = hotkey
+        }
+        
+        return success
     }
     
     private func openScreenGrabberFolder() {
         let folderURL = ScreenCaptureManager.shared.getScreenGrabberFolderURL()
         NSWorkspace.shared.open(folderURL)
+    }
+}
+
+// MARK: - Hotkey Configuration View
+struct HotkeyConfigView: View {
+    @Binding var currentHotkey: String
+    let onSave: (String) -> Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var newHotkey: String
+    @State private var conflictMessage: String?
+    
+    init(currentHotkey: Binding<String>, onSave: @escaping (String) -> Bool) {
+        self._currentHotkey = currentHotkey
+        self.onSave = onSave
+        self._newHotkey = State(initialValue: currentHotkey.wrappedValue)
+    }
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Set Global Hotkey")
+                .font(.title2.weight(.bold))
+            
+            Text("Press a key combination to trigger a capture from anywhere.")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+            
+            TextField("Enter hotkey (e.g., ⌘⇧C)", text: $newHotkey)
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.center)
+                .font(.title3)
+            
+            if let conflictMessage = conflictMessage {
+                Text(conflictMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.horizontal)
+            }
+            
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                
+                Button("Save") {
+                    if onSave(newHotkey) {
+                        dismiss()
+                    } else {
+                        conflictMessage = "This hotkey is already in use by another application. Please choose a different one."
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(newHotkey.isEmpty)
+            }
+        }
+        .padding()
+        .frame(width: 350)
     }
 }
 
@@ -1092,3 +1157,4 @@ extension NSImage {
     ScreenshotBrowserView()
         .modelContainer(for: Item.self, inMemory: true)
 }
+

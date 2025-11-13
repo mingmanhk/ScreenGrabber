@@ -473,6 +473,12 @@ class ScreenCaptureManager {
     }
     
     private func performScreenCapture(method: ScreenOption, openOption: OpenOption, modelContext: ModelContext?) {
+        // Special handling for scrolling capture
+        if case .scrollingCapture = method {
+            performScrollingCapture(openOption: openOption, modelContext: modelContext)
+            return
+        }
+        
         let timestamp = Date()
         let filename = "Screenshot_\(DateFormatter.screenshotFormatter.string(from: timestamp)).png"
         let screenGrabberFolder = getScreenGrabberFolderURL()
@@ -532,7 +538,7 @@ class ScreenCaptureManager {
         case .fullScreen:
             arguments.append("-i")
         case .scrollingCapture:
-            // For scrolling capture, use selected area as fallback
+            // This case is handled above, but keep for completeness
             arguments.append(contentsOf: ["-i", "-s"])
         }
         
@@ -591,6 +597,314 @@ class ScreenCaptureManager {
                     self?.showNotification(title: "Screen Grabber", message: "Failed to capture screenshot - check permissions")
                 }
             }
+        }
+    }
+    
+    // MARK: - Scrolling Capture
+    
+    /// Performs a scrolling capture that allows user to scroll and capture a larger area
+    private func performScrollingCapture(openOption: OpenOption, modelContext: ModelContext?) {
+        print("[SCROLL] Starting enhanced scrolling capture mode...")
+        
+        // Show improved instructions to the user
+        DispatchQueue.main.async { [weak self] in
+            let alert = NSAlert()
+            alert.messageText = "📜 Scrolling Capture"
+            alert.informativeText = """
+            Easy Scrolling Capture Workflow:
+            
+            ✓ Step 1: Select the scrollable area
+            ✓ Step 2: Take screenshots as you scroll
+            ✓ Step 3: Merge them automatically
+            
+            How it works:
+            • Select the same area each time
+            • Scroll between captures
+            • We'll stitch everything together
+            
+            💡 Tip: Works great for long web pages, documents, and conversations!
+            """
+            alert.alertStyle = .informational
+            
+            // Add icon (using system symbol name for macOS 11+)
+            if #available(macOS 11.0, *) {
+                if let icon = NSImage(systemSymbolName: "scroll.fill", accessibilityDescription: "Scrolling Capture") {
+                    alert.icon = icon
+                }
+            }
+            
+            alert.addButton(withTitle: "Let's Go! 🚀")
+            alert.addButton(withTitle: "Maybe Later")
+            
+            let response = alert.runModal()
+            
+            if response == .alertFirstButtonReturn {
+                self?.initiateScrollingCaptureSequence(openOption: openOption, modelContext: modelContext)
+            } else {
+                print("[SCROLL] User cancelled scrolling capture")
+            }
+        }
+    }
+    
+    /// Initiates the scrolling capture sequence
+    private func initiateScrollingCaptureSequence(openOption: OpenOption, modelContext: ModelContext?) {
+        let timestamp = Date()
+        let sessionID = UUID().uuidString.prefix(8)
+        let screenGrabberFolder = getScreenGrabberFolderURL()
+        
+        // Create a temporary folder for this capture session
+        let sessionFolder = screenGrabberFolder.appendingPathComponent("ScrollCapture_\(sessionID)")
+        
+        do {
+            try FileManager.default.createDirectory(at: sessionFolder, withIntermediateDirectories: true, attributes: nil)
+            print("[SCROLL] Created session folder: \(sessionFolder.path)")
+        } catch {
+            print("[ERR] Failed to create session folder: \(error)")
+            showNotification(title: "Error", message: "Could not create temporary folder for scrolling capture")
+            return
+        }
+        
+        // Capture first frame with user selection
+        let firstFramePath = sessionFolder.appendingPathComponent("frame_001.png")
+        let arguments = ["-i", "-s", firstFramePath.path]
+        
+        print("[SCROLL] Capturing first frame...")
+        showNotification(title: "Scrolling Capture", message: "Select the area to capture, then scroll and press Space for each frame")
+        
+        executeScreenCapture(arguments: arguments) { [weak self] success in
+            guard success, let self = self else {
+                print("[ERR] First frame capture failed")
+                try? FileManager.default.removeItem(at: sessionFolder)
+                return
+            }
+            
+            // Check if user actually captured (didn't press Esc)
+            if !FileManager.default.fileExists(atPath: firstFramePath.path) {
+                print("[SCROLL] User cancelled during first frame")
+                try? FileManager.default.removeItem(at: sessionFolder)
+                self.showNotification(title: "Cancelled", message: "Scrolling capture was cancelled")
+                return
+            }
+            
+            print("[OK] First frame captured successfully")
+            
+            // For now, since implementing a full interactive scrolling capture system
+            // requires event monitoring and complex UI, we'll provide a simpler workflow:
+            // The user manually captures multiple frames, and we'll guide them
+            
+            DispatchQueue.main.async {
+                self.showScrollingCaptureInstructions(
+                    sessionFolder: sessionFolder,
+                    frameCount: 1,
+                    openOption: openOption,
+                    modelContext: modelContext,
+                    timestamp: timestamp
+                )
+            }
+        }
+    }
+    
+    /// Shows instructions for continuing the scrolling capture
+    private func showScrollingCaptureInstructions(sessionFolder: URL, frameCount: Int, openOption: OpenOption, modelContext: ModelContext?, timestamp: Date) {
+        let alert = NSAlert()
+        alert.messageText = "📸 Frame \(frameCount) Captured!"
+        alert.informativeText = """
+        Great! You've captured \(frameCount) frame\(frameCount == 1 ? "" : "s").
+        
+        What's next?
+        
+        📸 More Content? - Scroll and capture another frame
+        ✅ All Done? - Merge all frames into one image
+        ❌ Changed Mind? - Cancel and discard
+        
+        💡 Pro tip: Try to keep consistent overlap between frames for smoother results!
+        """
+        alert.alertStyle = .informational
+        
+        // Add custom icon
+        if #available(macOS 11.0, *) {
+            if let icon = NSImage(systemSymbolName: "camera.metering.multispot", accessibilityDescription: "Multiple frames captured") {
+                icon.size = NSSize(width: 64, height: 64)
+                alert.icon = icon
+            }
+        }
+        
+        alert.addButton(withTitle: "📸 Capture More")
+        alert.addButton(withTitle: "✅ Finish & Merge")
+        alert.addButton(withTitle: "❌ Cancel")
+        
+        let response = alert.runModal()
+        
+        switch response {
+        case .alertFirstButtonReturn: // Capture More
+            captureNextScrollFrame(sessionFolder: sessionFolder, frameCount: frameCount, openOption: openOption, modelContext: modelContext, timestamp: timestamp)
+            
+        case .alertSecondButtonReturn: // Finish & Merge
+            mergeScrollingFrames(sessionFolder: sessionFolder, frameCount: frameCount, openOption: openOption, modelContext: modelContext, timestamp: timestamp)
+            
+        default: // Cancel
+            print("[SCROLL] User cancelled scrolling capture")
+            try? FileManager.default.removeItem(at: sessionFolder)
+            showNotification(title: "Cancelled", message: "Frames discarded")
+        }
+    }
+    
+    /// Captures the next frame in the scrolling sequence
+    private func captureNextScrollFrame(sessionFolder: URL, frameCount: Int, openOption: OpenOption, modelContext: ModelContext?, timestamp: Date) {
+        let nextFrameNumber = frameCount + 1
+        let framePath = sessionFolder.appendingPathComponent(String(format: "frame_%03d.png", nextFrameNumber))
+        
+        // Use the same region by having user select again (screencapture doesn't remember regions)
+        let arguments = ["-i", "-s", framePath.path]
+        
+        print("[SCROLL] Capturing frame \(nextFrameNumber)...")
+        
+        executeScreenCapture(arguments: arguments) { [weak self] success in
+            guard success, let self = self else {
+                print("[ERR] Frame \(nextFrameNumber) capture failed")
+                return
+            }
+            
+            // Check if user actually captured
+            if !FileManager.default.fileExists(atPath: framePath.path) {
+                print("[SCROLL] User cancelled during frame \(nextFrameNumber)")
+                self.showNotification(title: "Cancelled", message: "Frame capture was cancelled")
+                // Go back to instructions with current frame count
+                DispatchQueue.main.async {
+                    self.showScrollingCaptureInstructions(
+                        sessionFolder: sessionFolder,
+                        frameCount: frameCount,
+                        openOption: openOption,
+                        modelContext: modelContext,
+                        timestamp: timestamp
+                    )
+                }
+                return
+            }
+            
+            print("[OK] Frame \(nextFrameNumber) captured successfully")
+            
+            // Show instructions again for next frame
+            DispatchQueue.main.async {
+                self.showScrollingCaptureInstructions(
+                    sessionFolder: sessionFolder,
+                    frameCount: nextFrameNumber,
+                    openOption: openOption,
+                    modelContext: modelContext,
+                    timestamp: timestamp
+                )
+            }
+        }
+    }
+    
+    /// Merges all captured frames into a single scrolling screenshot
+    private func mergeScrollingFrames(sessionFolder: URL, frameCount: Int, openOption: OpenOption, modelContext: ModelContext?, timestamp: Date) {
+        print("[SCROLL] Merging \(frameCount) frames...")
+        
+        // Load all frame images
+        var frames: [NSImage] = []
+        for i in 1...frameCount {
+            let framePath = sessionFolder.appendingPathComponent(String(format: "frame_%03d.png", i))
+            if let image = NSImage(contentsOf: framePath) {
+                frames.append(image)
+            } else {
+                print("[WARN] Could not load frame \(i)")
+            }
+        }
+        
+        guard !frames.isEmpty else {
+            print("[ERR] No frames to merge")
+            showNotification(title: "Error", message: "No frames available to merge")
+            try? FileManager.default.removeItem(at: sessionFolder)
+            return
+        }
+        
+        // For a basic implementation, stack images vertically
+        // Note: A more sophisticated approach would detect overlap and stitch intelligently
+        guard let mergedImage = stackImagesVertically(frames) else {
+            print("[ERR] Failed to merge frames")
+            showNotification(title: "Error", message: "Could not merge frames into final image")
+            try? FileManager.default.removeItem(at: sessionFolder)
+            return
+        }
+        
+        // Save the merged image
+        let finalFilename = "ScrollCapture_\(DateFormatter.screenshotFormatter.string(from: timestamp)).png"
+        let screenGrabberFolder = getScreenGrabberFolderURL()
+        let finalPath = screenGrabberFolder.appendingPathComponent(finalFilename)
+        
+        if savePNGImage(mergedImage, to: finalPath) {
+            print("[OK] Scrolling capture saved to: \(finalPath.path)")
+            
+            // Clean up session folder
+            try? FileManager.default.removeItem(at: sessionFolder)
+            
+            // Save record and handle open option
+            saveScreenshotRecord(filePath: finalPath, timestamp: timestamp, method: .scrollingCapture, openOption: openOption, modelContext: modelContext)
+            
+            // Handle post-capture actions
+            DispatchQueue.main.async {
+                switch openOption {
+                case .clipboard:
+                    self.copyImageToClipboard(filePath: finalPath)
+                    self.showNotification(title: "Scrolling Capture Complete", message: "\(frameCount) frames merged and copied to clipboard")
+                    
+                case .saveToFile:
+                    self.showNotification(title: "Scrolling Capture Complete", message: "\(frameCount) frames merged and saved")
+                    
+                case .preview:
+                    NSWorkspace.shared.open(finalPath)
+                    self.showNotification(title: "Scrolling Capture Complete", message: "\(frameCount) frames merged")
+                }
+            }
+        } else {
+            print("[ERR] Failed to save merged image")
+            showNotification(title: "Error", message: "Could not save merged scrolling capture")
+            try? FileManager.default.removeItem(at: sessionFolder)
+        }
+    }
+    
+    /// Stacks multiple images vertically into one tall image
+    private func stackImagesVertically(_ images: [NSImage]) -> NSImage? {
+        guard !images.isEmpty else { return nil }
+        
+        // Calculate total height and max width
+        let width = images.map { $0.size.width }.max() ?? 0
+        let totalHeight = images.reduce(0) { $0 + $1.size.height }
+        
+        let finalSize = NSSize(width: width, height: totalHeight)
+        
+        // Create a new image to draw into
+        let finalImage = NSImage(size: finalSize)
+        
+        finalImage.lockFocus()
+        
+        var yOffset: CGFloat = 0
+        for image in images {
+            let rect = NSRect(x: 0, y: yOffset, width: image.size.width, height: image.size.height)
+            image.draw(in: rect)
+            yOffset += image.size.height
+        }
+        
+        finalImage.unlockFocus()
+        
+        return finalImage
+    }
+    
+    /// Saves an NSImage as PNG to the specified path
+    private func savePNGImage(_ image: NSImage, to url: URL) -> Bool {
+        guard let tiffData = image.tiffRepresentation,
+              let bitmapImage = NSBitmapImageRep(data: tiffData),
+              let pngData = bitmapImage.representation(using: .png, properties: [:]) else {
+            return false
+        }
+        
+        do {
+            try pngData.write(to: url)
+            return true
+        } catch {
+            print("[ERR] Failed to write PNG: \(error)")
+            return false
         }
     }
     

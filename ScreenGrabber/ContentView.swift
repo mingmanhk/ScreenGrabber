@@ -22,20 +22,70 @@ struct ContentView: View {
         NavigationSplitView {
             // Sidebar with settings
             VStack(alignment: .leading, spacing: 20) {
-                // Header
+                // Header - Enhanced with App Logo
                 VStack(spacing: 12) {
-                    Image(systemName: "camera.viewfinder")
-                        .font(.title)
-                        .foregroundColor(.accentColor)
+                    // App Logo - Try to load custom logo, fallback to icon
+                    Group {
+                        if let appIcon = NSImage(named: "AppIcon") ?? NSApp.applicationIconImage {
+                            Image(nsImage: appIcon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 64, height: 64)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .strokeBorder(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.white.opacity(0.3),
+                                                    Color.white.opacity(0.1)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
+                                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+                        } else {
+                            // Fallback to system icon if no app icon is available
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.accentColor.opacity(0.2), Color.accentColor.opacity(0.05)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 64, height: 64)
+                                
+                                Image(systemName: "camera.viewfinder")
+                                    .font(.title)
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                            }
+                        }
+                    }
                     
                     Text("Screen Grabber")
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("\(recentScreenshots.count) screenshots")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo.stack")
+                            .font(.caption2)
+                        Text("\(recentScreenshots.count) screenshots")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.secondary)
                 }
+                .frame(maxWidth: .infinity)
                 .padding()
                 
                 Divider()
@@ -147,7 +197,7 @@ struct ContentView: View {
             // Main screenshots view
             ZStack(alignment: .bottom) {
                 VStack(spacing: 0) {
-                    // Header
+                    // Header - Improved with quick capture button
                     HStack {
                         Text("Screenshots")
                             .font(.title)
@@ -155,48 +205,136 @@ struct ContentView: View {
                         
                         Spacer()
                         
-                        Button(action: loadRecentScreenshots) {
-                            Image(systemName: "arrow.clockwise")
+                        // Quick capture button in header (replaced redundant refresh)
+                        Button(action: captureScreen) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.black.opacity(0.25))
+                                            .frame(width: 24, height: 24)
+                                    )
+                                    .accessibilityLabel("New Screenshot")
+                                Text("New")
+                                    .font(.system(size: 14, weight: .semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.accentColor,
+                                                Color.accentColor.opacity(0.85)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .shadow(color: Color.accentColor.opacity(0.3), radius: 6, x: 0, y: 3)
+                            )
                         }
-                        .help("Refresh")
+                        .buttonStyle(ScaleButtonStyle())
+                        .help("Take a new screenshot")
                     }
                     .padding()
                     
                     Divider()
                     
                     if recentScreenshots.isEmpty {
-                        // Empty state
-                        VStack(spacing: 20) {
-                            Image(systemName: "photo.on.rectangle")
-                                .font(.system(size: 80))
-                                .foregroundColor(.secondary)
+                        // Empty state - Centered and improved
+                        VStack(spacing: 24) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.accentColor.opacity(0.1))
+                                    .frame(width: 120, height: 120)
+                                
+                                Image(systemName: "photo.on.rectangle")
+                                    .font(.system(size: 50, weight: .light))
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                            }
                             
-                            Text("No Screenshots Yet")
-                                .font(.title)
-                                .fontWeight(.semibold)
+                            VStack(spacing: 8) {
+                                Text("No Screenshots Yet")
+                                    .font(.title)
+                                    .fontWeight(.semibold)
+                                
+                                Text("Capture your first screenshot to get started!")
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
                             
-                            Text("Capture your first screenshot to get started!")
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            
+                            // Centered capture button with proper white text
                             Button(action: captureScreen) {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "camera.fill")
-                                        .font(.headline)
+                                HStack(spacing: 12) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [Color.black.opacity(0.35), Color.black.opacity(0.2)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .frame(width: 32, height: 32)
+                                            .overlay(
+                                                Circle()
+                                                    .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5)
+                                            )
+                                        
+                                        Image(systemName: "camera.fill")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                            .accessibilityLabel("Capture Screenshot")
+                                    }
+                                    
                                     Text("Capture Screenshot")
                                         .font(.headline)
                                         .fontWeight(.semibold)
+                                        .foregroundStyle(.white)
                                 }
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 18)
-                                .padding(.vertical, 10)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 14)
                                 .background(
                                     Capsule()
-                                        .fill(LinearGradient(colors: [Color.accentColor, Color.accentColor.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 6)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.accentColor.opacity(0.95),
+                                                    Color.accentColor.opacity(0.85)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .overlay(
+                                            Capsule()
+                                                .strokeBorder(
+                                                    LinearGradient(
+                                                        colors: [
+                                                            Color.white.opacity(0.3),
+                                                            Color.white.opacity(0.1)
+                                                        ],
+                                                        startPoint: .top,
+                                                        endPoint: .bottom
+                                                    ),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                        .shadow(color: Color.accentColor.opacity(0.4), radius: 12, x: 0, y: 8)
                                 )
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(ScaleButtonStyle())
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
@@ -223,50 +361,100 @@ struct ContentView: View {
                     }
                 }
                 
-                // Floating bottom action bar
+                // Floating bottom action bar - Centered capture button
                 HStack {
+                    Spacer()
+                    
+                    // Main centered capture button
                     Button(action: captureScreen) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 14) {
                             ZStack {
                                 Circle()
-                                    .fill(LinearGradient(colors: [Color.white.opacity(0.25), Color.white.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .frame(width: 36, height: 36)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.black.opacity(0.35), Color.black.opacity(0.2)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Circle()
+                                            .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5)
+                                    )
+                                
                                 Image(systemName: "camera.fill")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .accessibilityLabel("Take Screenshot")
                             }
-                            Text("Capture")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.white)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Take Screenshot")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(.white)
+                                
+                                Text(selectedScreenOption.displayName)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.6))
                         }
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 14)
                         .background(
-                            Capsule(style: .continuous)
-                                .fill(LinearGradient(colors: [Color.accentColor.opacity(0.98), Color.accentColor.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .shadow(color: Color.black.opacity(0.25), radius: 14, x: 0, y: 10)
+                            ZStack {
+                                Capsule(style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.accentColor.opacity(0.98),
+                                                Color.accentColor.opacity(0.85)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                
+                                // Shine effect
+                                Capsule(style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.15),
+                                                Color.clear
+                                            ],
+                                            startPoint: .top,
+                                            endPoint: .center
+                                        )
+                                    )
+                            }
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.4),
+                                                Color.white.opacity(0.1)
+                                            ],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        ),
+                                        lineWidth: 1.5
+                                    )
+                            )
+                            .shadow(color: Color.accentColor.opacity(0.5), radius: 16, x: 0, y: 10)
                         )
                     }
-                    .buttonStyle(.plain)
-
-                    Spacer(minLength: 0)
-
-                    // Optional: quick refresh on the right
-                    Button(action: loadRecentScreenshots) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                            .padding(10)
-                            .background(
-                                Circle().fill(Color(NSColor.controlBackgroundColor))
-                                    .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 4)
-                            )
-                    }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ScaleButtonStyle())
+                    
+                    Spacer()
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.vertical, 14)
                 .background(
                     VisualEffectBlur(material: .hudWindow, blendingMode: .withinWindow)
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -345,41 +533,68 @@ struct ScreenshotGridView: View {
                 }
             }
             .overlay(
-                // Hover overlay
+                // Hover overlay with Edit button added
                 VStack {
                     Spacer()
-                    HStack {
+                    HStack(spacing: 8) {
                         Button(action: { NSWorkspace.shared.open(fileURL) }) {
-                            Image(systemName: "eye")
-                                .foregroundColor(.white)
-                                .padding(8)
-                                .background(Color.black.opacity(0.7))
-                                .clipShape(Circle())
+                            VStack(spacing: 4) {
+                                Image(systemName: "eye.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("View")
+                                    .font(.system(size: 10, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .frame(width: 54, height: 54)
+                            .background(Color.blue.opacity(0.9))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
                         .buttonStyle(.plain)
+                        .help("Open in Preview")
+                        
+                        Button(action: onEdit) {
+                            VStack(spacing: 4) {
+                                Image(systemName: "pencil.tip.crop.circle.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Edit")
+                                    .font(.system(size: 10, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .frame(width: 54, height: 54)
+                            .background(Color.purple.opacity(0.9))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Edit Screenshot")
                         
                         Button(action: deleteFile) {
-                            Image(systemName: "trash")
-                                .foregroundColor(.white)
-                                .padding(8)
-                                .background(Color.red.opacity(0.85))
-                                .clipShape(Circle())
+                            VStack(spacing: 4) {
+                                Image(systemName: "trash.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Delete")
+                                    .font(.system(size: 10, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .frame(width: 54, height: 54)
+                            .background(Color.red.opacity(0.9))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
                         .buttonStyle(.plain)
                         .help("Delete")
                         
                         Spacer()
                     }
-                    .padding(8)
+                    .padding(10)
                     .background(
                         LinearGradient(
-                            gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.4)]),
+                            gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.6)]),
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
                 }
                 .opacity(showingHover ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: showingHover)
                 .cornerRadius(8)
             )
             .onHover { isHovering in
@@ -409,9 +624,15 @@ struct ScreenshotGridView: View {
                 NSWorkspace.shared.open(fileURL)
             }
             
+            Button("Edit") {
+                onEdit()
+            }
+            
             Button("Delete") {
                 deleteFile()
             }
+            
+            Divider()
             
             Button("Show in Finder") {
                 NSWorkspace.shared.selectFile(fileURL.path, inFileViewerRootedAtPath: fileURL.deletingLastPathComponent().path)
@@ -536,6 +757,9 @@ struct BasicImageEditorView: View {
         image = NSImage(contentsOf: imageURL)
     }
 }
+
+// MARK: - Button Styles
+// Note: ScaleButtonStyle is defined in MenuBarContentView.swift to avoid duplication
 
 #Preview {
     ContentView()

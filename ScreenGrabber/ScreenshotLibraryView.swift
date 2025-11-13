@@ -9,6 +9,14 @@ import SwiftUI
 import SwiftData
 import AppKit
 
+protocol OptionProtocol {
+    var icon: String { get }
+    var displayName: String { get }
+}
+
+extension ScreenOption: OptionProtocol {}
+extension OpenOption: OptionProtocol {}
+
 struct ScreenshotLibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openWindow) private var openWindow
@@ -83,365 +91,447 @@ struct ScreenshotLibraryView: View {
     
     var body: some View {
         NavigationSplitView {
-            // Sidebar
-            VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 16) {
-                    HStack {
-                        Image(systemName: "camera.viewfinder")
-                            .font(.largeTitle)
-                            .foregroundColor(.accentColor)
-                        
-                        VStack(alignment: .leading) {
-                            Text("Screen Grabber")
-                                .font(.title)
-                                .fontWeight(.bold)
-                            
-                            Text("\(recentScreenshots.count) screenshots")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                    
-                    // Removed existing Quick capture Button(action: quickCapture) block entirely
-                    
-                }
-                .padding()
-                
-                Divider()
-                
-                // Settings Section
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Capture Settings")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal)
-                    
-                    // Screen method
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Screen Method")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 4) {
-                            ForEach(ScreenOption.allCases, id: \.self) { option in
-                                Button(action: {
-                                    selectedScreenOption = option
-                                    UserDefaults.standard.set(option.rawValue, forKey: "selectedScreenOption")
-                                }) {
-                                    HStack {
-                                        Image(systemName: option.icon)
-                                            .frame(width: 20)
-                                        Text(option.displayName)
-                                        Spacer()
-                                        if selectedScreenOption == option {
-                                            Image(systemName: "checkmark")
-                                                .foregroundColor(.accentColor)
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        selectedScreenOption == option ? Color.accentColor.opacity(0.1) : Color.clear
-                                    )
-                                    .cornerRadius(6)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.primary)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    // Output method
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Output Method")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 4) {
-                            ForEach(OpenOption.allCases, id: \.self) { option in
-                                Button(action: {
-                                    selectedOpenOption = option
-                                    UserDefaults.standard.set(option.rawValue, forKey: "selectedOpenOption")
-                                }) {
-                                    HStack {
-                                        Image(systemName: option.icon)
-                                            .frame(width: 20)
-                                        Text(option.displayName)
-                                        Spacer()
-                                        if selectedOpenOption == option {
-                                            Image(systemName: "checkmark")
-                                                .foregroundColor(.accentColor)
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        selectedOpenOption == option ? Color.accentColor.opacity(0.1) : Color.clear
-                                    )
-                                    .cornerRadius(6)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.primary)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    Divider()
-                        .padding(.horizontal)
-                    
-                    // Hotkey settings
-                    Button(action: { showHotkeySheet = true }) {
-                        HStack {
-                            Image(systemName: "keyboard")
-                                .frame(width: 20)
-                            VStack(alignment: .leading) {
-                                Text("Global Hotkey")
-                                    .fontWeight(.medium)
-                                Text(currentHotkey)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.primary)
-                    .padding(.horizontal)
-                    .sheet(isPresented: $showHotkeySheet) {
-                        HotkeyConfigView(currentHotkey: $currentHotkey) { newHotkey in
-                            setupGlobalHotkey(hotkey: newHotkey)
-                        }
-                    }
-                    
-                    // Folder access
-                    Button(action: openScreenGrabberFolder) {
-                        HStack {
-                            Image(systemName: "folder")
-                                .frame(width: 20)
-                            VStack(alignment: .leading) {
-                                Text("Screenshots Folder")
-                                    .fontWeight(.medium)
-                                Text("Open in Finder")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.primary)
-                    .padding(.horizontal)
-                }
-                .padding(.vertical)
-                
-                Spacer()
-                
-                // Tips section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("💡 Tips")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.accentColor)
-                    
-                    Text("• Use menu bar for quick access")
-                    Text("• Double-click to edit screenshots")
-                    Text("• Right-click for more options")
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding()
-                .background(Color.accentColor.opacity(0.1))
-                .cornerRadius(8)
-                .padding()
-            }
-            .frame(minWidth: 300)
-            .background(Color(NSColor.controlBackgroundColor))
-            
+            sidebarContent
         } detail: {
-            // Main content with bottom action bar
-            ZStack(alignment: .bottom) {
-                VStack(spacing: 0) {
-                    // Toolbar
-                    HStack {
-                        // Search
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.secondary)
-                            
-                            TextField("Search screenshots...", text: $searchText)
-                                .textFieldStyle(.plain)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .cornerRadius(8)
-                        .frame(maxWidth: 300)
-                        
-                        Spacer()
-                        
-                        // Sort options
-                        HStack(spacing: 12) {
-                            Text("Sort:")
-                                .foregroundColor(.secondary)
-                            
-                            Picker("Sort", selection: $selectedSortOption) {
-                                ForEach(SortOption.allCases, id: \.self) { option in
-                                    Text(option.displayName).tag(option)
-                                }
-                            }
-                            .frame(width: 150)
-                            
-                            Button(action: loadRecentScreenshots) {
-                                Image(systemName: "arrow.clockwise")
-                            }
-                            .help("Refresh")
-                        }
-                    }
-                    .padding()
-                    .background(Color(NSColor.windowBackgroundColor))
-                    
-                    Divider()
-                    
-                    // Screenshots grid
-                    if filteredScreenshots.isEmpty {
-                        // Empty state
-                        VStack(spacing: 20) {
-                            if recentScreenshots.isEmpty {
-                                Image(systemName: "photo.on.rectangle")
-                                    .font(.system(size: 80))
-                                    .foregroundColor(.secondary)
-                                
-                                Text("No Screenshots Yet")
-                                    .font(.title)
-                                    .fontWeight(.semibold)
-                                
-                                Text("Capture your first screenshot to get started!")
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                
-                                Button(action: quickCapture) {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "camera.fill")
-                                            .font(.headline)
-                                        Text("Capture Screenshot")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                    }
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 18)
-                                    .padding(.vertical, 10)
-                                    .background(
-                                        Capsule()
-                                            .fill(LinearGradient(colors: [Color.accentColor, Color.accentColor.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 6)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            } else {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.secondary)
-                                
-                                Text("No Results Found")
-                                    .font(.title2)
-                                    .fontWeight(.semibold)
-                                
-                                Text("Try a different search term")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        // Screenshots grid
-                        ScrollView {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: 4), spacing: 20) {
-                                ForEach(filteredScreenshots, id: \.self) { fileURL in
-                                    ScreenshotGridItem(fileURL: fileURL) {
-                                        openImageEditor(for: fileURL)
-                                    }
-                                }
-                            }
-                            .padding()
-                        }
-                    }
-                }
-                
-                HStack {
-                    Button(action: quickCapture) {
-                        HStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(LinearGradient(colors: [Color.white.opacity(0.25), Color.white.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .frame(width: 36, height: 36)
-                                Image(systemName: "camera.fill")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                            }
-                            Text("Capture")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.white)
-                        }
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 12)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(LinearGradient(colors: [Color.accentColor.opacity(0.98), Color.accentColor.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .shadow(color: Color.black.opacity(0.25), radius: 14, x: 0, y: 10)
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer(minLength: 0)
-
-                    Button(action: loadRecentScreenshots) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                            .padding(10)
-                            .background(
-                                Circle().fill(Color(NSColor.controlBackgroundColor))
-                                    .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 4)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    VisualEffectBlur(material: .hudWindow, blendingMode: .withinWindow)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.08))
-                        )
-                        .padding(.horizontal, 12)
-                )
-                .padding(.bottom, 16)
-            }
+            detailContent
         }
         .navigationTitle("Screen Grabber")
         .onAppear {
             loadSettings()
             loadRecentScreenshots()
         }
+    }
+    
+    // MARK: - View Components
+    
+    @ViewBuilder
+    private var sidebarContent: some View {
+        VStack(spacing: 0) {
+            headerSection
+            Divider()
+            settingsSection
+            Spacer()
+            tipsSection
+        }
+        .frame(minWidth: 300)
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+    
+    @ViewBuilder
+    private var headerSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Image(systemName: "camera.viewfinder")
+                    .font(.largeTitle)
+                    .foregroundColor(.accentColor)
+                
+                VStack(alignment: .leading) {
+                    Text("Screen Grabber")
+                        .font(.title)
+                        .fontWeight(.bold)
+                    
+                    Text("\(recentScreenshots.count) screenshots")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+        }
+        .padding()
+    }
+    
+    @ViewBuilder
+    private var settingsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Capture Settings")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .padding(.horizontal)
+            
+            screenMethodSection
+            outputMethodSection
+            
+            Divider()
+                .padding(.horizontal)
+            
+            hotkeyButton
+            folderAccessButton
+        }
+        .padding(.vertical)
+    }
+    
+    @ViewBuilder
+    private var screenMethodSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Screen Method")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.horizontal)
+            
+            VStack(spacing: 4) {
+                ForEach(ScreenOption.allCases, id: \.self) { option in
+                    optionButton(
+                        option: option,
+                        isSelected: selectedScreenOption == option,
+                        action: {
+                            selectedScreenOption = option
+                            UserDefaults.standard.set(option.rawValue, forKey: "selectedScreenOption")
+                        }
+                    )
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    @ViewBuilder
+    private var outputMethodSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Output Method")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.horizontal)
+            
+            VStack(spacing: 4) {
+                ForEach(OpenOption.allCases, id: \.self) { option in
+                    optionButton(
+                        option: option,
+                        isSelected: selectedOpenOption == option,
+                        action: {
+                            selectedOpenOption = option
+                            UserDefaults.standard.set(option.rawValue, forKey: "selectedOpenOption")
+                        }
+                    )
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    @ViewBuilder
+    private func optionButton<T: OptionProtocol>(option: T, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: option.icon)
+                    .frame(width: 20)
+                Text(option.displayName)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.accentColor)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                isSelected ? Color.accentColor.opacity(0.1) : Color.clear
+            )
+            .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
+        .foregroundColor(.primary)
+    }
+    
+    @ViewBuilder
+    private var hotkeyButton: some View {
+        Button(action: { showHotkeySheet = true }) {
+            HStack {
+                Image(systemName: "keyboard")
+                    .frame(width: 20)
+                VStack(alignment: .leading) {
+                    Text("Global Hotkey")
+                        .fontWeight(.medium)
+                    Text(currentHotkey)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+        .foregroundColor(.primary)
+        .padding(.horizontal)
+        .sheet(isPresented: $showHotkeySheet) {
+            HotkeyConfigView(currentHotkey: $currentHotkey, onSave: { newHotkey in
+                setupGlobalHotkey(hotkey: newHotkey)
+                return true
+            })
+        }
+    }
+    
+    @ViewBuilder
+    private var folderAccessButton: some View {
+        Button(action: openScreenGrabberFolder) {
+            HStack {
+                Image(systemName: "folder")
+                    .frame(width: 20)
+                VStack(alignment: .leading) {
+                    Text("Screenshots Folder")
+                        .fontWeight(.medium)
+                    Text("Open in Finder")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+        .foregroundColor(.primary)
+        .padding(.horizontal)
+    }
+    
+    @ViewBuilder
+    private var tipsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("💡 Tips")
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundColor(.accentColor)
+            
+            Text("• Use menu bar for quick access")
+            Text("• Double-click to edit screenshots")
+            Text("• Right-click for more options")
+        }
+        .font(.caption)
+        .foregroundColor(.secondary)
+        .padding()
+        .background(Color.accentColor.opacity(0.1))
+        .cornerRadius(8)
+        .padding()
+    }
+    
+    @ViewBuilder
+    private var detailContent: some View {
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                toolbarSection
+                Divider()
+                screenshotsContent
+            }
+            bottomActionBar
+        }
+    }
+    
+    @ViewBuilder
+    private var toolbarSection: some View {
+        HStack {
+            searchBar
+            Spacer()
+            sortControls
+        }
+        .padding()
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+    
+    @ViewBuilder
+    private var searchBar: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            
+            TextField("Search screenshots...", text: $searchText)
+                .textFieldStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+        .frame(maxWidth: 300)
+    }
+    
+    @ViewBuilder
+    private var sortControls: some View {
+        HStack(spacing: 12) {
+            Text("Sort:")
+                .foregroundColor(.secondary)
+            
+            Picker("Sort", selection: $selectedSortOption) {
+                ForEach(SortOption.allCases, id: \.self) { option in
+                    Text(option.displayName).tag(option)
+                }
+            }
+            .frame(width: 150)
+            
+            Button(action: loadRecentScreenshots) {
+                Image(systemName: "arrow.clockwise")
+            }
+            .help("Refresh")
+        }
+    }
+    
+    @ViewBuilder
+    private var screenshotsContent: some View {
+        if filteredScreenshots.isEmpty {
+            emptyStateView
+        } else {
+            screenshotsGrid
+        }
+    }
+    
+    @ViewBuilder
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            if recentScreenshots.isEmpty {
+                noScreenshotsView
+            } else {
+                noResultsView
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    @ViewBuilder
+    private var noScreenshotsView: some View {
+        Image(systemName: "photo.on.rectangle")
+            .font(.system(size: 80))
+            .foregroundColor(.secondary)
+        
+        Text("No Screenshots Yet")
+            .font(.title)
+            .fontWeight(.semibold)
+        
+        Text("Capture your first screenshot to get started!")
+            .foregroundColor(.secondary)
+            .multilineTextAlignment(.center)
+        
+        captureButton(style: .large)
+    }
+    
+    @ViewBuilder
+    private var noResultsView: some View {
+        Image(systemName: "magnifyingglass")
+            .font(.system(size: 60))
+            .foregroundColor(.secondary)
+        
+        Text("No Results Found")
+            .font(.title2)
+            .fontWeight(.semibold)
+        
+        Text("Try a different search term")
+            .foregroundColor(.secondary)
+    }
+    
+    @ViewBuilder
+    private var screenshotsGrid: some View {
+        ScrollView {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: 4), spacing: 20) {
+                ForEach(filteredScreenshots, id: \.self) { fileURL in
+                    ScreenshotGridItem(fileURL: fileURL) {
+                        openImageEditor(for: fileURL)
+                    }
+                }
+            }
+            .padding()
+        }
+    }
+    
+    @ViewBuilder
+    private var bottomActionBar: some View {
+        HStack {
+            captureButton(style: .compact)
+            Spacer(minLength: 0)
+            refreshButton
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(actionBarBackground)
+        .padding(.bottom, 16)
+    }
+    
+    private enum CaptureButtonStyle {
+        case large
+        case compact
+    }
+    
+    @ViewBuilder
+    private func captureButton(style: CaptureButtonStyle) -> some View {
+        Button(action: quickCapture) {
+            HStack(spacing: style == .compact ? 12 : 10) {
+                if style == .compact {
+                    ZStack {
+                        Circle()
+                            .fill(LinearGradient(
+                                colors: [Color.white.opacity(0.25), Color.white.opacity(0.05)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "camera.fill")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                    }
+                } else {
+                    Image(systemName: "camera.fill")
+                        .font(.headline)
+                }
+                
+                Text(style == .compact ? "Capture" : "Capture Screenshot")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, style == .compact ? 12 : 10)
+            .background(captureButtonBackground(style: style))
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private func captureButtonBackground(style: CaptureButtonStyle) -> some View {
+        Capsule(style: style == .compact ? .continuous : .circular)
+            .fill(LinearGradient(
+                colors: [
+                    Color.accentColor.opacity(style == .compact ? 0.98 : 1.0),
+                    Color.accentColor.opacity(0.8)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ))
+            .shadow(
+                color: Color.black.opacity(style == .compact ? 0.25 : 0.15),
+                radius: style == .compact ? 14 : 8,
+                x: 0,
+                y: style == .compact ? 10 : 6
+            )
+    }
+    
+    @ViewBuilder
+    private var refreshButton: some View {
+        Button(action: loadRecentScreenshots) {
+            Image(systemName: "arrow.clockwise")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+                .padding(10)
+                .background(
+                    Circle()
+                        .fill(Color(NSColor.controlBackgroundColor))
+                        .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 4)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private var actionBarBackground: some View {
+        VisualEffectBlur(material: .hudWindow, blendingMode: .withinWindow)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.08))
+            )
+            .padding(.horizontal, 12)
     }
     
     // MARK: - Actions
@@ -481,7 +571,7 @@ struct ScreenshotLibraryView: View {
         UserDefaults.standard.set(hotkey, forKey: "grabScreenHotkey")
         currentHotkey = hotkey
         
-        GlobalHotkeyManager.shared.registerHotkey(hotkey) {
+        _ = GlobalHotkeyManager.shared.registerHotkey(hotkey) {
             DispatchQueue.main.async {
                 self.quickCapture()
             }
