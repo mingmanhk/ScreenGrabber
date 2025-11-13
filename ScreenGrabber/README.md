@@ -1,154 +1,489 @@
-# ScreenGrabber App
+# ScreenGrabber
 
-A powerful macOS menu bar screenshot application with global hotkey support.
+<div align="center">
 
-## Features
+![ScreenGrabber Icon](https://img.shields.io/badge/macOS-Compatible-blue)
+![Swift](https://img.shields.io/badge/Swift-5.9+-orange)
+![SwiftUI](https://img.shields.io/badge/SwiftUI-Latest-green)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-### ✅ **Automatic File Saving**
-- **All screenshots are automatically saved** to `~/Pictures/ScreenGrabber/` folder
-- The app creates the folder automatically if it doesn't exist
-- Files are named with timestamps: `Screenshot_YYYY-MM-DD_HH-mm-ss.png`
+**A powerful, modern macOS screenshot application with global hotkey support and intelligent organization.**
 
-### ✅ **Working Global Hotkeys**
-- **Default hotkey:** `⌘⇧C` (Command + Shift + C)
-- **Customizable hotkeys** through the app interface
-- **Global system-wide functionality** - works from any app
-- Triggers the currently selected screen capture method
+[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation) • [Support](#-support)
 
-### ✅ **Multiple Capture Methods**
-1. **Selected Area** (`⌘⇧4`) - Click and drag to select area
-2. **Window** (`⌘⇧4 + Space`) - Click on any window
-3. **Full Screen** (`⌘⇧3`) - Captures entire screen
-4. **Scrolling** (`⌘⇧S`) - Currently uses selected area (can be enhanced)
+</div>
 
-### ✅ **Flexible Output Options**
-1. **Clipboard** - Copy screenshot to clipboard (+ save to file)
-2. **Save to File** - Save only to ScreenGrabber folder
-3. **Preview** - Open in Preview app (+ save to file)
+---
 
-### ✅ **Recent Screenshots**
-- View up to 5 most recent captures in the menu
-- Quick preview and share options
-- Files are tracked automatically from the ScreenGrabber folder
+## 📸 Overview
 
-## How It Works
+ScreenGrabber is a native macOS application that revolutionizes how you capture, organize, and manage screenshots. Built with SwiftUI and modern Apple technologies, it provides a seamless experience right from your menu bar.
 
-### Global Hotkey System
-1. The app uses `GlobalHotkeyManager` class with Carbon framework
-2. Registers system-wide keyboard shortcuts
-3. When hotkey is pressed, triggers screenshot with current settings
-4. Settings are persisted between app launches
+## ✨ Features
 
-### Screenshot Capture Process
-1. **All captures save to file first** in ScreenGrabber folder
-2. Then handles additional options (clipboard, preview) as needed
-3. Uses macOS built-in `screencapture` command for reliability
-4. Tracks captures in SwiftData database for history
+## ✨ Features
 
-### Menu Bar Interface
-1. **Screen options** - Select capture method (area, window, full screen, scrolling)
-2. **Open options** - Choose what happens after capture
-3. **Recent captures** - Quick access to recent screenshots
-4. **Hotkey configuration** - Customize global shortcut
-5. **Grab Screen button** - Manual capture trigger
+### 🎯 **Smart Screenshot Capture**
+- **Multiple Capture Methods:**
+  - 📐 **Selected Area** - Precisely capture any region of your screen
+  - 🪟 **Window Capture** - Grab specific windows with a single click
+  - 🖥️ **Full Screen** - Capture your entire display
+  - 📜 **Scrolling Capture** - Perfect for long documents
+  
+- **Flexible Output Options:**
+  - 📋 **Clipboard** - Instantly copy to clipboard for quick pasting
+  - 💾 **Save to File** - Automatically organize in your library
+  - 👁️ **Preview** - Open immediately for editing or annotation
 
-## Installation & Setup
+### ⌨️ **Global Hotkey System**
+- **Customizable Shortcuts** - Set your preferred key combinations
+- **System-Wide Access** - Works from any application
+- **Default Hotkey:** `⌘⇧C` (Command + Shift + C)
+- **Instant Response** - Lightning-fast capture triggering
+- **Persistent Settings** - Your preferences survive app restarts
 
-1. Build and run the app in Xcode
-2. Grant necessary permissions:
-   - **Accessibility permission** (for global hotkeys)
-   - **Screen Recording permission** (for screenshots)
-   - **Notifications permission** (for capture confirmations)
-3. The app will appear in your menu bar
-4. Click to open interface or use hotkey from anywhere
+### 🗂️ **Intelligent Organization**
+- **Automatic File Management** - All screenshots saved to `~/Pictures/ScreenGrabber/`
+- **Smart Naming** - Timestamped files: `Screenshot_YYYY-MM-DD_HH-mm-ss.png`
+- **Search & Filter** - Quickly find screenshots by name
+- **Sort Options** - Organize by date (newest/oldest) or name (A-Z)
+- **Grid View** - Adjustable thumbnail sizes (Large/Medium/Small)
 
-## Technical Implementation
+### 🎨 **Modern User Interface**
+- **Menu Bar Integration** - Quick access without cluttering your dock
+- **Beautiful Browser View** - Full-featured screenshot library
+- **Live Preview** - See thumbnails as you browse
+- **Hover Actions** - View, edit, or delete with intuitive controls
+- **Dark Mode Support** - Seamlessly adapts to your system theme
+
+### 📊 **Statistics & Insights**
+- **Total Screenshots** - Track your capture count
+- **Storage Usage** - Monitor total file size
+- **Recent Activity** - Quick access to latest captures
+- **Relative Timestamps** - "2 min ago" style dates
+
+### 🔧 **Advanced Features**
+- **Context Menu Support** - Right-click for quick actions
+- **Copy to Clipboard** - Directly from the browser
+- **Show in Finder** - Navigate to files instantly
+- **Batch Operations** - Delete multiple screenshots
+- **SwiftData Integration** - Modern data persistence
+
+## 🖥️ System Requirements
+
+- **macOS:** 13.0 (Ventura) or later
+- **Architecture:** Apple Silicon (M1/M2/M3) or Intel
+- **Permissions Required:**
+  - Screen Recording
+  - Accessibility (for global hotkeys)
+  - Notifications (optional)
+
+## 📦 Installation
+
+### Option 1: Build from Source
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/ScreenGrabber.git
+   cd ScreenGrabber
+   ```
+
+2. **Open in Xcode:**
+   ```bash
+   open ScreenGrabber.xcodeproj
+   ```
+
+3. **Build and Run:**
+   - Select your target Mac
+   - Press `⌘R` or click the Run button
+   - Grant permissions when prompted
+
+### Option 2: Download Release
+
+1. Visit the [Releases](https://github.com/yourusername/ScreenGrabber/releases) page
+2. Download the latest `.dmg` file
+3. Open the DMG and drag ScreenGrabber to Applications
+4. Launch from Applications folder
+
+## 🚀 Usage
+
+### First Launch Setup
+
+1. **Launch ScreenGrabber** from Applications or Spotlight
+2. **Grant Permissions:**
+   - Click "Open System Preferences" when prompted
+   - Enable **Screen Recording** permission
+   - Enable **Accessibility** permission (for hotkeys)
+3. **Configure Your Preferences:**
+   - Choose your preferred capture method
+   - Set your output destination
+   - Customize your global hotkey
+
+### Quick Start Guide
+
+#### Taking Screenshots
+
+**Method 1: Global Hotkey (Fastest)**
+```
+1. Press ⌘⇧C (or your custom hotkey) anywhere in macOS
+2. Follow the on-screen instructions for your selected method
+3. Screenshot automatically saved to your library
+```
+
+**Method 2: Menu Bar**
+```
+1. Click the ScreenGrabber icon in menu bar
+2. Select capture method (Area/Window/Full Screen)
+3. Choose output option (Clipboard/File/Preview)
+4. Click "Capture Screenshot" button
+```
+
+**Method 3: Browser Window**
+```
+1. Open ScreenGrabber from menu bar
+2. Click "Capture Screenshot" in the floating action bar
+3. Or use the prominent capture button in empty state
+```
+
+### Managing Your Screenshots
+
+#### Browsing Your Library
+- Open the main window to see all screenshots
+- Use the search bar to filter by filename
+- Sort by date or name using the toolbar menu
+- Adjust grid size for optimal viewing
+
+#### Screenshot Actions
+- **View:** Click the eye icon or double-click thumbnail
+- **Edit:** Click the pencil icon to open editor
+- **Delete:** Click the trash icon to remove
+- **Copy:** Right-click → Copy to clipboard
+- **Reveal:** Right-click → Show in Finder
+
+### Customizing Settings
+
+#### Capture Settings
+```
+Sidebar → Capture → Screen Method
+- Selected Area: Drag to select region
+- Window: Click to capture window
+- Full Screen: Instant full display capture
+- Scrolling: For long pages (experimental)
+```
+
+#### Output Settings
+```
+Sidebar → Capture → Output Method
+- Clipboard: Copy + Save
+- Save to File: Save only
+- Preview: Open in Preview app
+```
+
+#### Hotkey Configuration
+```
+Sidebar → Quick Actions → Global Hotkey
+- Choose from presets
+- Or create custom combination
+- Supports ⌘⇧⌥⌃ + any letter
+```
+
+## 📚 Documentation
+
+### File Structure
+
+```
+ScreenGrabber/
+├── App/
+│   ├── ScreenGrabberApp.swift      # Main app entry point
+│   └── AppDelegate.swift           # Menu bar coordination
+├── Views/
+│   ├── ScreenshotBrowserView.swift # Main browser interface
+│   ├── MenuBarContentView.swift    # Menu bar popover
+│   ├── SimpleImageEditorView.swift # Image editing
+│   └── HotkeyConfigView.swift      # Hotkey configuration
+├── Managers/
+│   ├── ScreenCaptureManager.swift  # Screenshot operations
+│   └── GlobalHotkeyManager.swift   # Hotkey handling
+├── Models/
+│   ├── Screenshot.swift            # SwiftData model
+│   └── Item.swift                  # Legacy support
+└── Resources/
+    ├── Assets.xcassets             # Icons and images
+    └── Info.plist                  # App configuration
+```
 
 ### Key Components
 
-1. **GlobalHotkeyManager** - Handles system-wide keyboard shortcuts using Carbon framework
-2. **ScreenCaptureManager** - Manages all screenshot operations and file handling
-3. **MenuBarContentView** - Main user interface in the popover
-4. **Screenshot** SwiftData model - Tracks capture history
-5. **AppDelegate** - Coordinates menu bar presence and global functionality
+#### ScreenCaptureManager
+Handles all screenshot operations:
+- Executes `screencapture` command
+- Manages file saving and naming
+- Handles permissions
+- Provides recent screenshots
 
-### File Structure
+#### GlobalHotkeyManager
+Manages system-wide keyboard shortcuts:
+- Uses Carbon framework for reliability
+- Registers/unregisters hotkeys
+- Triggers capture on activation
+- Persists hotkey preferences
+
+#### ScreenshotBrowserView
+Main user interface:
+- Grid-based screenshot library
+- Search and sort functionality
+- Hover actions and context menus
+- Modern, responsive design
+
+### Architecture
+
 ```
-ScreenGrabber/
-├── ScreenGrabberApp.swift          # App entry point & AppDelegate
-├── MenuBarContentView.swift        # Main UI interface
-├── GlobalHotkeyManager.swift       # Global hotkey system
-├── ScreenCaptureManager.swift      # Screenshot handling
-├── Screenshot.swift                # SwiftData model
-├── Item.swift                     # Legacy model (can be removed)
-└── ContentView.swift              # Hidden main window
+┌─────────────────────┐
+│   ScreenGrabberApp  │
+│   (App Entry Point) │
+└──────────┬──────────┘
+           │
+    ┌──────┴───────┐
+    │              │
+┌───▼────┐    ┌───▼─────────────┐
+│ Menu   │    │ Main Window     │
+│ Bar    │    │ (Browser View)  │
+└───┬────┘    └───┬─────────────┘
+    │             │
+    └──────┬──────┘
+           │
+    ┌──────▼──────────────┐
+    │ ScreenCaptureManager│
+    │ GlobalHotkeyManager │
+    └─────────────────────┘
 ```
 
-## User Experience
+## 🎨 Design Philosophy
 
-### Setting Up Hotkeys
-1. Click menu bar icon
-2. Click "Set Hotkey" button
-3. Choose from presets or enter custom combination
-4. Hotkey works immediately across the entire system
+ScreenGrabber follows Apple's Human Interface Guidelines and modern design principles:
 
-### Taking Screenshots
-#### Method 1: Global Hotkey
-- Press your configured hotkey anywhere in macOS
-- Screenshot is taken using current settings
-- File automatically saved to ScreenGrabber folder
+- **Clarity:** Clean, intuitive interface with clear visual hierarchy
+- **Consistency:** Unified design language across all views
+- **Efficiency:** Minimal clicks to accomplish tasks
+- **Beauty:** Gradient accents, smooth animations, thoughtful spacing
+- **Accessibility:** Keyboard shortcuts, tooltips, semantic colors
 
-#### Method 2: Menu Interface
-- Click menu bar icon
-- Select capture method (area, window, full screen)
-- Select output option (clipboard, file, preview)
-- Click "Grab Screen" button
+## 🔧 Advanced Configuration
 
-### Finding Your Screenshots
-- All screenshots saved to: `~/Pictures/ScreenGrabber/`
-- Recent captures shown in app interface
-- Click eye icon to open in default image viewer
-- Click share icon for system sharing options
+### Custom Screenshot Folder
 
-## Customization
+By default, screenshots are saved to `~/Pictures/ScreenGrabber/`. To customize:
 
-### Hotkey Options
-- **Command combinations:** `⌘⇧C`, `⌘⇧G`, `⌘⇧S`, etc.
-- **Custom hotkeys:** Use ⌘ (Command), ⇧ (Shift), ⌥ (Option), ⌃ (Control) + any letter
-- Settings persist between app launches
+```swift
+// In ScreenCaptureManager.swift
+func getScreenGrabberFolderURL() -> URL {
+    let picturesURL = FileManager.default.urls(
+        for: .picturesDirectory, 
+        in: .userDomainMask
+    ).first!
+    return picturesURL.appendingPathComponent("YourCustomFolder")
+}
+```
 
-### Capture Settings
-- **Screen method** and **output option** preferences are saved
-- **Global hotkey uses saved preferences** automatically
-- Change settings anytime through menu interface
+### Hotkey Modifiers
 
-## Troubleshooting
+Supported modifier keys:
+- `⌘` Command (cmdKey)
+- `⇧` Shift (shiftKey)
+- `⌥` Option/Alt (optionKey)
+- `⌃` Control (controlKey)
 
-### Hotkeys Not Working
-1. Check **System Preferences > Security & Privacy > Privacy > Accessibility**
-2. Ensure ScreenGrabber app is enabled
-3. Restart the app if needed
+Combine any modifiers with letters A-Z or numbers 0-9.
 
-### Screenshots Not Saving
-1. Check **System Preferences > Security & Privacy > Privacy > Screen Recording**
-2. Ensure ScreenGrabber app is enabled
-3. Verify `~/Pictures/ScreenGrabber/` folder exists and is writable
+## 🐛 Troubleshooting
+## 🐛 Troubleshooting
 
-### App Not Visible
-- Look for the "G" icon in your menu bar (top-right area)
-- If missing, restart the app
-- Check Activity Monitor to ensure it's running
+### Common Issues
 
-## Development Notes
+#### Hotkeys Not Working
 
-This implementation provides a complete screenshot solution with:
-- ✅ Global hotkey functionality that actually works
-- ✅ All screenshots automatically saved to ScreenGrabber folder
-- ✅ Persistent user preferences
-- ✅ Menu bar interface for manual operation
-- ✅ Recent captures tracking
-- ✅ Multiple output options
-- ✅ System permissions handling
-- ✅ Native macOS integration
+**Problem:** Global hotkey doesn't trigger screenshots
 
-The hotkey system uses the Carbon framework for reliable system-wide keyboard monitoring, while the screenshot functionality leverages the built-in `screencapture` command for maximum compatibility and reliability.
+**Solutions:**
+1. Check Accessibility permissions:
+   ```
+   System Settings → Privacy & Security → Accessibility
+   → Enable ScreenGrabber
+   ```
+2. Restart the app
+3. Try a different hotkey combination
+4. Ensure no conflicts with other apps
+
+#### Screenshots Not Saving
+
+**Problem:** Screenshots aren't appearing in the folder
+
+**Solutions:**
+1. Verify Screen Recording permission:
+   ```
+   System Settings → Privacy & Security → Screen Recording
+   → Enable ScreenGrabber
+   ```
+2. Check folder permissions:
+   ```bash
+   ls -la ~/Pictures/ScreenGrabber/
+   ```
+3. Manually create folder if needed:
+   ```bash
+   mkdir -p ~/Pictures/ScreenGrabber
+   ```
+
+#### App Icon Missing from Menu Bar
+
+**Problem:** Can't find the app in menu bar
+
+**Solutions:**
+1. Check if app is running in Activity Monitor
+2. Restart the application
+3. Check menu bar isn't hidden
+4. Look for "G" icon in right side of menu bar
+
+#### Performance Issues
+
+**Problem:** App feels slow or unresponsive
+
+**Solutions:**
+1. Clear old screenshots from library
+2. Restart the app
+3. Check available disk space
+4. Reduce grid size in browser view
+
+### Getting Help
+
+- **Documentation:** Check this README first
+- **Issues:** [GitHub Issues](https://github.com/yourusername/ScreenGrabber/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/yourusername/ScreenGrabber/discussions)
+- **Email:** support@screengrabber.app
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how to get started:
+
+### Development Setup
+
+1. Fork the repository
+2. Clone your fork:
+   ```bash
+   git clone https://github.com/yourusername/ScreenGrabber.git
+   ```
+3. Create a feature branch:
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+4. Make your changes
+5. Test thoroughly
+6. Commit with clear messages:
+   ```bash
+   git commit -m "Add: Amazing new feature"
+   ```
+7. Push to your fork:
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+8. Open a Pull Request
+
+### Coding Guidelines
+
+- Follow Swift style guidelines
+- Use SwiftUI best practices
+- Add comments for complex logic
+- Include tests where applicable
+- Update documentation as needed
+
+### Areas for Contribution
+
+- 🐛 Bug fixes
+- ✨ New features
+- 📝 Documentation improvements
+- 🎨 UI/UX enhancements
+- 🌐 Localization
+- ♿ Accessibility improvements
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+```
+MIT License
+
+Copyright (c) 2025 ScreenGrabber
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+```
+
+## 🙏 Acknowledgments
+
+- Built with [SwiftUI](https://developer.apple.com/xcode/swiftui/) and [SwiftData](https://developer.apple.com/xcode/swiftdata/)
+- Uses macOS native `screencapture` command
+- Inspired by modern screenshot tools
+- Thanks to all contributors!
+
+## 📞 Support
+
+### Get Help
+
+- 📖 [Documentation](https://github.com/yourusername/ScreenGrabber/wiki)
+- 💬 [Discord Community](https://discord.gg/screengrabber)
+- 🐦 [Twitter @ScreenGrabber](https://twitter.com/screengrabber)
+- 📧 Email: support@screengrabber.app
+
+### Report Issues
+
+Found a bug? [Open an issue](https://github.com/yourusername/ScreenGrabber/issues/new) with:
+- macOS version
+- ScreenGrabber version
+- Steps to reproduce
+- Expected vs actual behavior
+- Screenshots if applicable
+
+## 🗺️ Roadmap
+
+### Version 2.0 (Coming Soon)
+- [ ] Cloud sync support
+- [ ] Advanced image editing
+- [ ] Screenshot annotations
+- [ ] OCR text extraction
+- [ ] Quick Share extensions
+- [ ] Keyboard shortcut manager
+
+### Future Plans
+- [ ] iOS companion app
+- [ ] Team collaboration features
+- [ ] Video recording
+- [ ] GIF creation
+- [ ] Screenshot scheduling
+- [ ] Browser extension integration
+
+## 📊 Stats
+
+![GitHub stars](https://img.shields.io/github/stars/yourusername/ScreenGrabber)
+![GitHub forks](https://img.shields.io/github/forks/yourusername/ScreenGrabber)
+![GitHub issues](https://img.shields.io/github/issues/yourusername/ScreenGrabber)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/yourusername/ScreenGrabber)
+
+---
+
+<div align="center">
+
+**Made with ❤️ for macOS**
+
+[⬆ Back to Top](#screengrabber)
+
+</div>
