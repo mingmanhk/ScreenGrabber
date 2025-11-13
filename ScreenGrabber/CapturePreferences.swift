@@ -339,3 +339,42 @@ class QuickActionsManager: ObservableObject {
         }
     }
 }
+
+// MARK: - New Features Settings
+
+struct NewFeaturesSettings {
+    // Quick Draw
+    static var quickDrawEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "quickDrawEnabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "quickDrawEnabled") }
+    }
+
+    static var quickDrawAutoShow: Bool {
+        get { UserDefaults.standard.object(forKey: "quickDrawAutoShow") as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: "quickDrawAutoShow") }
+    }
+
+    // Smart Tags
+    static var autoTaggingEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "autoTaggingEnabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "autoTaggingEnabled") }
+    }
+
+    // Project Workspaces
+    static var autoDetectProject: Bool {
+        get { UserDefaults.standard.object(forKey: "autoDetectProject") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "autoDetectProject") }
+    }
+
+    // Multi-Monitor
+    static var rememberDisplayPreference: Bool {
+        get { UserDefaults.standard.object(forKey: "rememberDisplayPreference") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "rememberDisplayPreference") }
+    }
+
+    // Auto-Trim
+    static var autoTrimEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "autoTrimEnabled") as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: "autoTrimEnabled") }
+    }
+}
