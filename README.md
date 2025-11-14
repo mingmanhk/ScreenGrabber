@@ -13,7 +13,7 @@
 
 
 
-![ScreenGrabber App Screenshot](./Sources/ScreenGrabber.png)
+![ScreenGrabber App Screenshot](./Resources/ScreenGrabber.png)
 
 
 
