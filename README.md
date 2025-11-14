@@ -9,7 +9,13 @@
 
 **A powerful, modern macOS screenshot application with global hotkey support and intelligent organization.**
 
-<img src="Sources/ScreenGrabber.png" alt="ScreenGrabber App Screenshot" width="900" />
+<!-- App Preview -->
+
+
+
+![ScreenGrabber App Screenshot](./Sources/ScreenGrabber.png)
+
+
 
 [Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation) • [Support](#-support)
 
@@ -20,8 +26,6 @@
 ## 📸 Overview
 
 ScreenGrabber is a native macOS application that revolutionizes how you capture, organize, and manage screenshots. Built with SwiftUI and modern Apple technologies, it provides a seamless experience right from your menu bar.
-
-## ✨ Features
 
 ## ✨ Features
 
@@ -88,3 +92,5 @@ ScreenGrabber is a native macOS application that revolutionizes how you capture,
    ```bash
    git clone https://github.com/yourusername/ScreenGrabber.git
    cd ScreenGrabber
+
+
