@@ -68,6 +68,8 @@ struct MenuBarContentView: View {
     @State private var selectedOpenOption: OpenOption = .clipboard
     @State private var selectedScreenOption: ScreenOption = .selectedArea
     @State private var recentScreenshots: [URL] = []
+    @State private var showingImageEditor = false
+    @State private var selectedImageURL: URL?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -143,7 +145,7 @@ struct MenuBarContentView: View {
                     }
                 }
                 
-                // Output Method Section
+                // Save To Section
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Save To", systemImage: "square.and.arrow.down")
                         .font(.caption)
@@ -285,6 +287,11 @@ struct MenuBarContentView: View {
         .onAppear(perform: loadSettings)
         .sheet(isPresented: $showHotkeySheet) {
             HotkeyConfigView(currentHotkey: $currentHotkey, onSave: setupGlobalHotkey)
+        }
+        .sheet(isPresented: $showingImageEditor) {
+            if let url = selectedImageURL {
+                ImageEditorView(imageURL: url)
+            }
         }
     }
 }
@@ -553,12 +560,12 @@ struct OptionButton: View {
             VStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(.primary) // Let colorScheme handle the color
+                    .foregroundStyle(isSelected ? .white : .primary)
                     .frame(height: 20)
                 
                 Text(label)
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.primary) // Let colorScheme handle the color
+                    .foregroundStyle(isSelected ? .white : .primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -569,7 +576,13 @@ struct OptionButton: View {
                 ZStack {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.accent) // Use solid color for a cleaner look
+                            .fill(
+                                LinearGradient(
+                                    colors: [.accentColor, .accentColor.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                     } else {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .fill(Color(NSColor.controlBackgroundColor))
@@ -579,15 +592,15 @@ struct OptionButton: View {
                     }
                 }
             )
-            .colorScheme(isSelected ? .dark : colorScheme) // KEY FIX: Force dark content on accent color background
             .shadow(
-                color: isSelected ? Color.accent.opacity(0.3) : Color.clear,
-                radius: isSelected ? 6 : 0,
+                color: isSelected ? Color.accentColor.opacity(0.4) : Color.clear,
+                radius: isSelected ? 8 : 0,
                 x: 0,
-                y: isSelected ? 3 : 0
+                y: isSelected ? 4 : 0
             )
         }
         .buttonStyle(.plain)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 }
 

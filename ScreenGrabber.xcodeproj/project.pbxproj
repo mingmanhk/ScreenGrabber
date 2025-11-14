@@ -9,11 +9,7 @@
 /* Begin PBXBuildFile section */
 		9931EDED2EC599E300471EFB /* VisualEffectBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9931EDEC2EC599E200471EFB /* VisualEffectBlur.swift */; };
 		99ACFB572EC5866D00B7C107 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 99ACFB472EC5866D00B7C107 /* README.md */; };
-		99ACFBF62EC58EB100B7C107 /* IMPLEMENTATION_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 99ACFBF52EC58EB100B7C107 /* IMPLEMENTATION_GUIDE.md */; };
 		99ACFBF82EC58ED700B7C107 /* IntegrationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99ACFBF72EC58ED700B7C107 /* IntegrationHelper.swift */; };
-		99ACFBFA2EC58F0D00B7C107 /* FEATURES_COMPLETE.md in Resources */ = {isa = PBXBuildFile; fileRef = 99ACFBF92EC58F0D00B7C107 /* FEATURES_COMPLETE.md */; };
-		99ACFBFC2EC58F4D00B7C107 /* ROADMAP_VISUAL.md in Resources */ = {isa = PBXBuildFile; fileRef = 99ACFBFB2EC58F4D00B7C107 /* ROADMAP_VISUAL.md */; };
-		99ACFBFE2EC58F7C00B7C107 /* QUICK_REFERENCE.md in Resources */ = {isa = PBXBuildFile; fileRef = 99ACFBFD2EC58F7C00B7C107 /* QUICK_REFERENCE.md */; };
 		99ACFC062EC590D100B7C107 /* AIFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99ACFC052EC590D100B7C107 /* AIFeatures.swift */; };
 		99ACFC082EC5910A00B7C107 /* AIFeaturesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99ACFC072EC5910A00B7C107 /* AIFeaturesView.swift */; };
 /* End PBXBuildFile section */
@@ -41,11 +37,7 @@
 		991ECEA02EAB26F500BB7684 /* ScreenGrabberUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenGrabberUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9931EDEC2EC599E200471EFB /* VisualEffectBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBlur.swift; sourceTree = "<group>"; };
 		99ACFB472EC5866D00B7C107 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		99ACFBF52EC58EB100B7C107 /* IMPLEMENTATION_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = IMPLEMENTATION_GUIDE.md; sourceTree = "<group>"; };
 		99ACFBF72EC58ED700B7C107 /* IntegrationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationHelper.swift; sourceTree = "<group>"; };
-		99ACFBF92EC58F0D00B7C107 /* FEATURES_COMPLETE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FEATURES_COMPLETE.md; sourceTree = "<group>"; };
-		99ACFBFB2EC58F4D00B7C107 /* ROADMAP_VISUAL.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ROADMAP_VISUAL.md; sourceTree = "<group>"; };
-		99ACFBFD2EC58F7C00B7C107 /* QUICK_REFERENCE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = QUICK_REFERENCE.md; sourceTree = "<group>"; };
 		99ACFC052EC590D100B7C107 /* AIFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFeatures.swift; sourceTree = "<group>"; };
 		99ACFC072EC5910A00B7C107 /* AIFeaturesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFeaturesView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -107,11 +99,7 @@
 				991ECEA32EAB26F500BB7684 /* ScreenGrabberUITests */,
 				991ECE882EAB26F000BB7684 /* Products */,
 				99ACFB472EC5866D00B7C107 /* README.md */,
-				99ACFBF52EC58EB100B7C107 /* IMPLEMENTATION_GUIDE.md */,
 				99ACFBF72EC58ED700B7C107 /* IntegrationHelper.swift */,
-				99ACFBF92EC58F0D00B7C107 /* FEATURES_COMPLETE.md */,
-				99ACFBFB2EC58F4D00B7C107 /* ROADMAP_VISUAL.md */,
-				99ACFBFD2EC58F7C00B7C107 /* QUICK_REFERENCE.md */,
 				99ACFC052EC590D100B7C107 /* AIFeatures.swift */,
 				99ACFC072EC5910A00B7C107 /* AIFeaturesView.swift */,
 				9931EDEC2EC599E200471EFB /* VisualEffectBlur.swift */,
@@ -249,10 +237,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				99ACFBFA2EC58F0D00B7C107 /* FEATURES_COMPLETE.md in Resources */,
-				99ACFBFC2EC58F4D00B7C107 /* ROADMAP_VISUAL.md in Resources */,
-				99ACFBF62EC58EB100B7C107 /* IMPLEMENTATION_GUIDE.md in Resources */,
-				99ACFBFE2EC58F7C00B7C107 /* QUICK_REFERENCE.md in Resources */,
 				99ACFB572EC5866D00B7C107 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

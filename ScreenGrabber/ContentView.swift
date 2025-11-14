@@ -112,17 +112,18 @@ struct ContentView: View {
                                     HStack {
                                         Image(systemName: option.icon)
                                             .frame(width: 20)
+                                            .foregroundColor(selectedScreenOption == option ? Color.accentColor : .primary)
                                         Text(option.displayName)
                                         Spacer()
                                         if selectedScreenOption == option {
                                             Image(systemName: "checkmark")
-                                                .foregroundColor(.accentColor)
+                                                .foregroundColor(Color.accentColor)
                                         }
                                     }
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 8)
                                     .background(
-                                        selectedScreenOption == option ? Color.accentColor.opacity(0.1) : Color.clear
+                                        selectedScreenOption == option ? Color.accentColor.opacity(0.15) : Color.clear
                                     )
                                     .cornerRadius(6)
                                 }
@@ -133,9 +134,9 @@ struct ContentView: View {
                         .padding(.horizontal)
                     }
                     
-                    // Output method
+                    // Save To
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Output Method")
+                        Text("Save To")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .padding(.horizontal)
@@ -148,17 +149,18 @@ struct ContentView: View {
                                     HStack {
                                         Image(systemName: option.icon)
                                             .frame(width: 20)
+                                            .foregroundColor(selectedOpenOption == option ? Color.accentColor : .primary)
                                         Text(option.displayName)
                                         Spacer()
                                         if selectedOpenOption == option {
                                             Image(systemName: "checkmark")
-                                                .foregroundColor(.accentColor)
+                                                .foregroundColor(Color.accentColor)
                                         }
                                     }
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 8)
                                     .background(
-                                        selectedOpenOption == option ? Color.accentColor.opacity(0.1) : Color.clear
+                                        selectedOpenOption == option ? Color.accentColor.opacity(0.15) : Color.clear
                                     )
                                     .cornerRadius(6)
                                 }
@@ -205,41 +207,36 @@ struct ContentView: View {
                         
                         Spacer()
                         
-                        // Quick capture button in header (replaced redundant refresh)
-                        Button(action: captureScreen) {
+                        // Refresh button in header
+                        Button(action: loadRecentScreenshots) {
                             HStack(spacing: 8) {
-                                Image(systemName: "camera.fill")
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.accentColor.opacity(0.15))
+                                        .frame(width: 24, height: 24)
+                                    
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                                
+                                Text("Refresh")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .background(
-                                        Circle()
-                                            .fill(Color.black.opacity(0.25))
-                                            .frame(width: 24, height: 24)
-                                    )
-                                    .accessibilityLabel("New Screenshot")
-                                Text("New")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(Color.accentColor)
                             }
-                            .foregroundStyle(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background(
                                 Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.accentColor,
-                                                Color.accentColor.opacity(0.85)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
+                                    .fill(Color.accentColor.opacity(0.1))
+                                    .overlay(
+                                        Capsule()
+                                            .strokeBorder(Color.accentColor.opacity(0.2), lineWidth: 1)
                                     )
-                                    .shadow(color: Color.accentColor.opacity(0.3), radius: 6, x: 0, y: 3)
                             )
                         }
                         .buttonStyle(ScaleButtonStyle())
-                        .help("Take a new screenshot")
+                        .help("Refresh screenshot list")
                     }
                     .padding()
                     
@@ -274,67 +271,7 @@ struct ContentView: View {
                                     .multilineTextAlignment(.center)
                             }
                             
-                            // Centered capture button with proper white text
-                            Button(action: captureScreen) {
-                                HStack(spacing: 12) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [Color.black.opacity(0.35), Color.black.opacity(0.2)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                            .frame(width: 32, height: 32)
-                                            .overlay(
-                                                Circle()
-                                                    .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5)
-                                            )
-                                        
-                                        Image(systemName: "camera.fill")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundStyle(.white)
-                                            .accessibilityLabel("Capture Screenshot")
-                                    }
-                                    
-                                    Text("Capture Screenshot")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(.white)
-                                }
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 14)
-                                .background(
-                                    Capsule()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [
-                                                    Color.accentColor.opacity(0.95),
-                                                    Color.accentColor.opacity(0.85)
-                                                ],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
-                                        .overlay(
-                                            Capsule()
-                                                .strokeBorder(
-                                                    LinearGradient(
-                                                        colors: [
-                                                            Color.white.opacity(0.3),
-                                                            Color.white.opacity(0.1)
-                                                        ],
-                                                        startPoint: .top,
-                                                        endPoint: .bottom
-                                                    ),
-                                                    lineWidth: 1
-                                                )
-                                        )
-                                        .shadow(color: Color.accentColor.opacity(0.4), radius: 12, x: 0, y: 8)
-                                )
-                            }
-                            .buttonStyle(ScaleButtonStyle())
+                          
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
@@ -365,9 +302,9 @@ struct ContentView: View {
                 HStack {
                     Spacer()
                     
-                    // Main centered capture button
+                    // Main centered capture button - RED DESIGN (match empty state style)
                     Button(action: captureScreen) {
-                        HStack(spacing: 14) {
+                        HStack(spacing: 12) {
                             ZStack {
                                 Circle()
                                     .fill(
@@ -377,21 +314,22 @@ struct ContentView: View {
                                             endPoint: .bottomTrailing
                                         )
                                     )
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 32, height: 32)
                                     .overlay(
                                         Circle()
                                             .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5)
                                     )
                                 
                                 Image(systemName: "camera.fill")
-                                    .font(.system(size: 18, weight: .bold))
+                                    .font(.system(size: 16, weight: .semibold))
                                     .foregroundStyle(.white)
                                     .accessibilityLabel("Take Screenshot")
                             }
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Take Screenshot")
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
                                     .foregroundStyle(.white)
                                 
                                 Text(selectedScreenOption.displayName)
@@ -403,16 +341,16 @@ struct ContentView: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.6))
                         }
-                        .padding(.horizontal, 22)
+                        .padding(.horizontal, 24)
                         .padding(.vertical, 14)
                         .background(
                             ZStack {
-                                Capsule(style: .continuous)
+                                Capsule()
                                     .fill(
                                         LinearGradient(
                                             colors: [
-                                                Color.accentColor.opacity(0.98),
-                                                Color.accentColor.opacity(0.85)
+                                                Color.red.opacity(0.98),
+                                                Color.red.opacity(0.85)
                                             ],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
@@ -420,7 +358,7 @@ struct ContentView: View {
                                     )
                                 
                                 // Shine effect
-                                Capsule(style: .continuous)
+                                Capsule()
                                     .fill(
                                         LinearGradient(
                                             colors: [
@@ -433,20 +371,20 @@ struct ContentView: View {
                                     )
                             }
                             .overlay(
-                                Capsule(style: .continuous)
+                                Capsule()
                                     .strokeBorder(
                                         LinearGradient(
                                             colors: [
-                                                Color.white.opacity(0.4),
+                                                Color.white.opacity(0.3),
                                                 Color.white.opacity(0.1)
                                             ],
                                             startPoint: .top,
                                             endPoint: .bottom
                                         ),
-                                        lineWidth: 1.5
+                                        lineWidth: 1
                                     )
                             )
-                            .shadow(color: Color.accentColor.opacity(0.5), radius: 16, x: 0, y: 10)
+                            .shadow(color: Color.red.opacity(0.5), radius: 12, x: 0, y: 8)
                         )
                     }
                     .buttonStyle(ScaleButtonStyle())
@@ -474,7 +412,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingImageEditor) {
             if let url = selectedImageURL {
-                BasicImageEditorView(imageURL: url)
+                ImageEditorView(imageURL: url)
             }
         }
     }
@@ -710,59 +648,32 @@ struct ScreenshotGridView: View {
     }
 }
 
-// MARK: - Basic Image Editor
-struct BasicImageEditorView: View {
-    let imageURL: URL
-    @State private var image: NSImage?
-    @Environment(\.dismiss) private var dismiss
-    
+// Subtle checkerboard background to indicate canvas
+struct CheckerboardBackground: View {
     var body: some View {
-        VStack(spacing: 0) {
-            // Simple toolbar
-            HStack {
-                Text("Image Editor")
-                    .font(.headline)
-                
-                Spacer()
-                
-                Button("Close") {
-                    dismiss()
+        GeometryReader { proxy in
+            let size: CGFloat = 20
+            let columns = Int(ceil(proxy.size.width / size))
+            let rows = Int(ceil(proxy.size.height / size))
+
+            ZStack(alignment: .topLeading) {
+                Color(NSColor.windowBackgroundColor)
+                ForEach(0..<(rows * columns), id: \.self) { index in
+                    let row = index / columns
+                    let col = index % columns
+                    if (row + col) % 2 == 0 {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.08))
+                            .frame(width: size, height: size)
+                            .position(x: CGFloat(col) * size + size / 2, y: CGFloat(row) * size + size / 2)
+                    }
                 }
             }
-            .padding()
-            .background(Color(NSColor.controlBackgroundColor))
-            
-            Divider()
-            
-            // Image display
-            if let image = image {
-                ScrollView([.horizontal, .vertical]) {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            } else {
-                ProgressView("Loading image...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
         }
-        .frame(minWidth: 800, minHeight: 600)
-        .onAppear {
-            loadImage()
-        }
-    }
-    
-    private func loadImage() {
-        image = NSImage(contentsOf: imageURL)
     }
 }
-
-// MARK: - Button Styles
-// Note: ScaleButtonStyle is defined in MenuBarContentView.swift to avoid duplication
 
 #Preview {
     ContentView()
         .modelContainer(for: Item.self, inMemory: true)
 }
-
