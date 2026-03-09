@@ -148,12 +148,7 @@ struct EditorCanvas: View {
             displayImage = image
             return
         }
-        // Compute off the main thread so the UI stays responsive
-        let adjustments = editorState.adjustments
-        Task.detached(priority: .userInitiated) {
-            let adjusted = adjustments.applied(to: image)
-            await MainActor.run { displayImage = adjusted ?? image }
-        }
+        displayImage = editorState.adjustments.applied(to: image) ?? image
     }
 
     /// Apply crop: convert canvas-space rect → CGImage pixel rect, then crop.

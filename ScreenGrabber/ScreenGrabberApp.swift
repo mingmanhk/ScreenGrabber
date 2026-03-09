@@ -31,8 +31,8 @@ struct ScreenGrabberApp: App {
         }
 
         // Attempt recovery: delete the corrupt store and recreate it.
-        if let storeURL = try? ModelConfiguration(schema: schema).url,
-           FileManager.default.fileExists(atPath: storeURL.path) {
+        let storeURL = ModelConfiguration(schema: schema).url
+        if FileManager.default.fileExists(atPath: storeURL.path) {
             try? FileManager.default.removeItem(at: storeURL)
             CaptureLogger.log(.error, "Deleted corrupt SwiftData store — creating a fresh one.")
         }
