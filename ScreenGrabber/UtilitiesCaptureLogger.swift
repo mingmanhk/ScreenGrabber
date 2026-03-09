@@ -229,7 +229,7 @@ struct CaptureLogger {
     
     // MARK: - Session Logging
     
-    nonisolated(unsafe) private static let sessionStartTimeLock = NSLock()
+    private static let sessionStartTimeLock = NSLock()
     nonisolated(unsafe) private static var _sessionStartTime: Date?
     
     /// Start a new logging session

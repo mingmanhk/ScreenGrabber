@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Vision
+@preconcurrency import Vision
 import CoreML
 import NaturalLanguage
 import AppKit

@@ -13,8 +13,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var recentScreenshots: [URL] = []
-    @State private var showingEditor = false
-    @State private var selectedImageURL: URL?
+    @State private var editorURL: IdentifiableURL?
     @StateObject private var settingsManager = SettingsManager.shared
     @ObservedObject private var settingsModel = SettingsModel.shared
 
@@ -60,11 +59,9 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.2), value: showingCountdown)
             }
         }
-        .sheet(isPresented: $showingEditor) {
-            if let url = selectedImageURL {
-                ScreenCaptureEditorView(fileURL: url)
-                    .frame(minWidth: 900, minHeight: 600)
-            }
+        .sheet(item: $editorURL) { item in
+            ScreenCaptureEditorView(fileURL: item.url)
+                .frame(minWidth: 900, minHeight: 600)
         }
         .onAppear {
             setupMonitor()
@@ -107,8 +104,7 @@ struct ContentView: View {
     // MARK: - Actions
 
     private func openEditor(for url: URL) {
-        selectedImageURL = url
-        showingEditor = true
+        editorURL = IdentifiableURL(url)
     }
 
     private func captureScreen() {
@@ -345,4 +341,11 @@ struct CaptureCountdownOverlay: View {
             }
         }
     }
+}
+
+/// Thin Identifiable wrapper around URL so we can use .sheet(item:).
+struct IdentifiableURL: Identifiable {
+    let id: String
+    let url: URL
+    init(_ url: URL) { self.id = url.absoluteString; self.url = url }
 }
