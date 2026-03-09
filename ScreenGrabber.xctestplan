@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "D67988FB-22D0-4C10-859E-4605516CB6B2",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:ScreenGrabber.xcodeproj",
+      "identifier" : "991ECE862EAB26F000BB7684",
+      "name" : "ScreenGrabber"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:ScreenGrabber.xcodeproj",
+        "identifier" : "991ECE952EAB26F500BB7684",
+        "name" : "ScreenGrabberTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:ScreenGrabber.xcodeproj",
+        "identifier" : "991ECE9F2EAB26F500BB7684",
+        "name" : "ScreenGrabberUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

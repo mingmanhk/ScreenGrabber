@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- ====================================== -->
+	<!-- SCREENGRABBER ENTITLEMENTS            -->
+	<!-- ====================================== -->
+	
+	<!-- App Sandbox (Enable for Mac App Store) -->
+	<!-- Set to false for direct distribution if you need broader access -->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	
+	<!-- ====================================== -->
+	<!-- FILE ACCESS ENTITLEMENTS              -->
+	<!-- ====================================== -->
+	
+	<!-- User-Selected Files (Required for NSOpenPanel/NSSavePanel) -->
+	<!-- Allows access to files/folders user explicitly selects -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	
+	<!-- Downloads Folder Access (if sandboxed) -->
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+	
+	<!-- Pictures Folder Access (if sandboxed) -->
+	<key>com.apple.security.files.pictures.read-write</key>
+	<true/>
+	
+	<!-- ====================================== -->
+	<!-- CAPTURE PERMISSIONS                   -->
+	<!-- ====================================== -->
+	
+	<!-- Screen Recording Permission -->
+	<!-- Required to capture screenshots and screen recordings -->
+	<!-- Note: This is handled by TCC, not entitlements -->
+	<!-- User must grant in System Settings > Privacy & Security > Screen Recording -->
+	
+	<!-- Audio Input (Microphone) -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	
+	<!-- Camera (if you add webcam overlay features) -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
+	
+	<!-- ====================================== -->
+	<!-- ACCESSIBILITY & AUTOMATION             -->
+	<!-- ====================================== -->
+	
+	<!-- AppleEvents (for window capture and automation) -->
+	<!-- Note: Accessibility permission handled by TCC -->
+	<!-- User must grant in System Settings > Privacy & Security > Accessibility -->
+	
+	<!-- ====================================== -->
+	<!-- NETWORK (if you add upload features)   -->
+	<!-- ====================================== -->
+	
+	<!-- Outgoing Network Connections (if sandboxed) -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	
+	<!-- Incoming Network Connections (if you add sharing server) -->
+	<key>com.apple.security.network.server</key>
+	<false/>
+	
+	<!-- ====================================== -->
+	<!-- CODE SIGNING                          -->
+	<!-- ====================================== -->
+	
+	<!-- Hardened Runtime -->
+	<key>com.apple.security.cs.allow-jit</key>
+	<false/>
+	
+	<!-- Allow DYLD Environment Variables (disable for production) -->
+	<key>com.apple.security.cs.allow-dyld-environment-variables</key>
+	<false/>
+	
+	<!-- Allow Unsigned Executable Memory (disable for production) -->
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<false/>
+	
+	<!-- Disable Library Validation (only if needed) -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<false/>
+	
+	<!-- ====================================== -->
+	<!-- DEBUGGING (Development Only)          -->
+	<!-- ====================================== -->
+	
+	<!-- Debugging Tool -->
+	<!-- Remove for production builds -->
+	<key>com.apple.security.get-task-allow</key>
+	<true/>
+	
+	<!-- ====================================== -->
+	<!-- FULL DISK ACCESS NOTES                -->
+	<!-- ====================================== -->
+	
+	<!-- Full Disk Access cannot be requested via entitlements -->
+	<!-- It must be granted by the user in System Settings: -->
+	<!-- System Settings > Privacy & Security > Full Disk Access -->
+	
+	<!-- To help your app appear in the FDA list: -->
+	<!-- 1. Add usage descriptions to Info.plist (NSDesktopFolderUsageDescription, etc.) -->
+	<!-- 2. Attempt to access a protected folder (Desktop, Documents, etc.) -->
+	<!-- 3. The system will add your app to the FDA list -->
+	<!-- 4. User can then toggle your app ON -->
+	
+	<!-- For sandboxed apps, you may need bookmarks: -->
+	<!-- Use NSOpenPanel to let user select folders -->
+	<!-- Store bookmark data for persistent access -->
+	<!-- This bypasses FDA requirement for user-selected folders -->
+	
+</dict>
+</plist>

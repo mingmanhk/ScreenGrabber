@@ -72,28 +72,28 @@ struct ImageCanvas: View {
         }
         .sheet(isPresented: $showingTextEditor) {
             TextEditorSheet(
+                title: editorState.selectedTool == .callout ? "Add Callout" : "Add Text",
                 text: editorState.currentText,
                 onSave: { text in
                     addTextAnnotation(text: text, at: textEditorPosition)
                 }
             )
         }
-        .onAppear {
-            loadImage()
+        .task {
+            // Load image if not already loaded
+            if originalImage == nil {
+                originalImage = NSImage(contentsOf: imageURL)
+            }
         }
     }
     
-    private func loadImage() {
-        if originalImage == nil {
-            originalImage = NSImage(contentsOf: imageURL)
-        }
-    }
+    // Removed redundant loadImage function
     
     private func handleTap(at location: CGPoint) {
         switch editorState.selectedTool {
-        case .text:
+        case .text, .callout:
             textEditorPosition = location
-            editorState.currentText = "Enter text"
+            editorState.currentText = editorState.selectedTool == .callout ? "Callout text" : "Enter text"
             showingTextEditor = true
             
         case .stamp:
@@ -138,6 +138,26 @@ struct ImageCanvas: View {
     }
     
     private func startDrawing(at point: CGPoint) {
+        // For selection tool, check if we're clicking on an annotation
+        if editorState.selectedTool == .selection {
+            if let annotation = findAnnotationAt(point) {
+                editorState.selectedAnnotation = annotation
+            } else {
+                editorState.selectedAnnotation = nil
+            }
+            return
+        }
+        
+        // For move tool, check if we're clicking on an annotation to move it
+        if editorState.selectedTool == .move {
+            if let annotation = findAnnotationAt(point) {
+                editorState.selectedAnnotation = annotation
+                // Store the starting point for moving
+                dragStart = point
+            }
+            return
+        }
+        
         var annotation = DrawingAnnotation()
         annotation.tool = editorState.selectedTool
         annotation.color = editorState.currentColor
@@ -149,7 +169,7 @@ struct ImageCanvas: View {
         annotation.blurRadius = editorState.blurRadius
         
         switch editorState.selectedTool {
-        case .pen, .highlighter, .eraser:
+        case .pen, .freehand, .highlighter, .eraser:
             let path = CGMutablePath()
             path.move(to: point)
             currentPath = path
@@ -158,7 +178,7 @@ struct ImageCanvas: View {
         case .line, .arrow:
             annotation.points = [point, point] // Start and end will be the same initially
             
-        case .shape, .blur, .spotlight, .callout, .crop:
+        case .shape, .blur, .pixelate, .spotlight, .callout, .crop:
             annotation.rect = CGRect(origin: point, size: .zero)
             
         default:
@@ -169,10 +189,42 @@ struct ImageCanvas: View {
     }
     
     private func updateCurrentDrawing(to point: CGPoint) {
+        // Handle move tool
+        if editorState.selectedTool == .move, let selectedAnnotation = editorState.selectedAnnotation {
+            let deltaX = point.x - dragStart.x
+            let deltaY = point.y - dragStart.y
+            
+            // Update the annotation's position
+            if var updatedAnnotation = editorState.annotations.first(where: { $0.id == selectedAnnotation.id }) {
+                updatedAnnotation.rect = CGRect(
+                    x: updatedAnnotation.rect.origin.x + deltaX,
+                    y: updatedAnnotation.rect.origin.y + deltaY,
+                    width: updatedAnnotation.rect.width,
+                    height: updatedAnnotation.rect.height
+                )
+                
+                // Update points for line/arrow tools
+                if !updatedAnnotation.points.isEmpty {
+                    updatedAnnotation.points = updatedAnnotation.points.map { oldPoint in
+                        CGPoint(x: oldPoint.x + deltaX, y: oldPoint.y + deltaY)
+                    }
+                }
+                
+                editorState.updateAnnotation(updatedAnnotation)
+                dragStart = point // Update drag start for continuous movement
+            }
+            return
+        }
+        
+        // For selection tool, don't create new annotations
+        if editorState.selectedTool == .selection {
+            return
+        }
+        
         guard var annotation = tempAnnotation else { return }
         
         switch editorState.selectedTool {
-        case .pen, .highlighter, .eraser:
+        case .pen, .freehand, .highlighter, .eraser:
             currentPath?.addLine(to: point)
             annotation.points.append(point)
             
@@ -181,7 +233,7 @@ struct ImageCanvas: View {
                 annotation.points[1] = point
             }
             
-        case .shape, .blur, .spotlight, .callout, .crop:
+        case .shape, .blur, .pixelate, .spotlight, .callout, .crop:
             let rect = CGRect(
                 x: min(dragStart.x, point.x),
                 y: min(dragStart.y, point.y),
@@ -215,14 +267,14 @@ struct ImageCanvas: View {
     
     private func shouldAddAnnotation(_ annotation: DrawingAnnotation) -> Bool {
         switch annotation.tool {
-        case .pen, .highlighter, .eraser:
+        case .pen, .freehand, .highlighter, .eraser:
             return annotation.points.count > 1
             
         case .line, .arrow:
             return annotation.points.count >= 2 && 
                    distance(annotation.points[0], annotation.points[1]) > 5
             
-        case .shape, .blur, .spotlight, .callout, .crop:
+        case .shape, .blur, .pixelate, .spotlight, .callout, .crop:
             return annotation.rect.width > 5 && annotation.rect.height > 5
             
         case .text:
@@ -241,7 +293,7 @@ struct ImageCanvas: View {
         // Find the topmost annotation that contains this point
         return editorState.annotations.reversed().first { annotation in
             switch annotation.tool {
-            case .shape, .blur, .spotlight, .callout, .text, .crop:
+            case .shape, .blur, .pixelate, .spotlight, .callout, .text, .crop:
                 return annotation.rect.contains(point)
                 
             case .line, .arrow:
@@ -250,7 +302,7 @@ struct ImageCanvas: View {
                 }
                 return false
                 
-            case .pen, .highlighter, .eraser:
+            case .pen, .freehand, .highlighter, .eraser:
                 // Check if point is near any point in the path
                 return annotation.points.contains { pathPoint in
                     distance(point, pathPoint) < annotation.lineWidth + 5
@@ -284,14 +336,21 @@ struct ImageCanvas: View {
     
     private func addTextAnnotation(text: String, at location: CGPoint) {
         var annotation = DrawingAnnotation()
-        annotation.tool = .text
+        annotation.tool = editorState.selectedTool == .callout ? .callout : .text
         annotation.text = text
         annotation.color = editorState.currentColor
         annotation.fontSize = editorState.fontSize
         annotation.opacity = editorState.opacity
-        annotation.rect = CGRect(origin: location, size: CGSize(width: 200, height: 30))
+
+        if editorState.selectedTool == .callout {
+            // Callout gets a bigger default rect
+            let estimatedWidth = max(120, CGFloat(text.count) * annotation.fontSize * 0.65 + 16)
+            annotation.rect = CGRect(origin: location, size: CGSize(width: estimatedWidth, height: annotation.fontSize * 2.5))
+        } else {
+            annotation.rect = CGRect(origin: location, size: CGSize(width: 200, height: 30))
+        }
         annotation.isCompleted = true
-        
+
         editorState.addAnnotation(annotation)
     }
     
@@ -306,15 +365,22 @@ struct ImageCanvas: View {
     }
     
     private func addStepAnnotation(at location: CGPoint) {
-        let stepNumber = editorState.annotations.filter { $0.tool == .step }.count + 1
-        
+        // Find the highest existing step number and increment
+        let existingNumbers = editorState.annotations
+            .filter { $0.tool == .step }
+            .compactMap { Int($0.text) }
+        let stepNumber = (existingNumbers.max() ?? 0) + 1
+
         var annotation = DrawingAnnotation()
         annotation.tool = .step
         annotation.text = "\(stepNumber)"
         annotation.color = editorState.currentColor
-        annotation.rect = CGRect(origin: location, size: CGSize(width: 30, height: 30))
+        annotation.rect = CGRect(
+            x: location.x - 15, y: location.y - 15,
+            width: 30, height: 30
+        )
         annotation.isCompleted = true
-        
+
         editorState.addAnnotation(annotation)
     }
 }
@@ -329,7 +395,44 @@ struct AnnotationOverlay: View {
         Canvas { context, size in
             for annotation in editorState.annotations where annotation.isCompleted {
                 drawAnnotation(context: context, annotation: annotation, in: size)
+                
+                // Draw selection handles if this annotation is selected
+                if let selected = editorState.selectedAnnotation,
+                   selected.id == annotation.id {
+                    drawSelectionHandles(context: context, for: annotation)
+                }
             }
+        }
+    }
+    
+    private func drawSelectionHandles(context: GraphicsContext, for annotation: DrawingAnnotation) {
+        let rect = annotation.rect
+        let handleSize: CGFloat = 8
+        let handles = [
+            CGPoint(x: rect.minX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.minY),
+            CGPoint(x: rect.minX, y: rect.maxY),
+            CGPoint(x: rect.maxX, y: rect.maxY),
+            CGPoint(x: rect.midX, y: rect.minY),
+            CGPoint(x: rect.midX, y: rect.maxY),
+            CGPoint(x: rect.minX, y: rect.midY),
+            CGPoint(x: rect.maxX, y: rect.midY)
+        ]
+        
+        // Draw selection border
+        let borderPath = Path(rect)
+        context.stroke(borderPath, with: .color(.blue), style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
+        
+        // Draw handles
+        for handle in handles {
+            let handleRect = CGRect(
+                x: handle.x - handleSize / 2,
+                y: handle.y - handleSize / 2,
+                width: handleSize,
+                height: handleSize
+            )
+            context.fill(Path(ellipseIn: handleRect), with: .color(.white))
+            context.stroke(Path(ellipseIn: handleRect), with: .color(.blue), lineWidth: 2)
         }
     }
     
@@ -338,7 +441,7 @@ struct AnnotationOverlay: View {
         context.opacity = annotation.opacity
         
         switch annotation.tool {
-        case .pen, .highlighter, .eraser:
+        case .pen, .freehand, .highlighter, .eraser:
             if let path = annotation.path {
                 let swiftUIPath = Path(path)
                 context.stroke(
@@ -372,7 +475,13 @@ struct AnnotationOverlay: View {
             
         case .blur:
             drawBlur(context: context, annotation: annotation)
+
+        case .pixelate:
+            drawPixelate(context: context, annotation: annotation)
             
+        case .callout:
+            drawCallout(context: context, annotation: annotation)
+
         case .spotlight:
             drawSpotlight(context: context, annotation: annotation)
             
@@ -382,8 +491,41 @@ struct AnnotationOverlay: View {
         case .stamp:
             drawStamp(context: context, annotation: annotation)
             
+        case .crop:
+            drawCrop(context: context, annotation: annotation)
+            
         default:
             break
+        }
+    }
+    
+    private func drawCrop(context: GraphicsContext, annotation: DrawingAnnotation) {
+        let rect = annotation.rect
+        // Draw dashed border for crop area
+        context.stroke(
+            Path(rect),
+            with: .color(Color(annotation.color)),
+            style: StrokeStyle(lineWidth: 2, dash: [8, 4])
+        )
+        
+        // Draw corner handles
+        let handleSize: CGFloat = 10
+        let corners = [
+            CGPoint(x: rect.minX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.minY),
+            CGPoint(x: rect.minX, y: rect.maxY),
+            CGPoint(x: rect.maxX, y: rect.maxY)
+        ]
+        
+        for corner in corners {
+            let handleRect = CGRect(
+                x: corner.x - handleSize / 2,
+                y: corner.y - handleSize / 2,
+                width: handleSize,
+                height: handleSize
+            )
+            context.fill(Path(handleRect), with: .color(.white))
+            context.stroke(Path(handleRect), with: .color(Color(annotation.color)), lineWidth: 2)
         }
     }
     
@@ -453,10 +595,86 @@ struct AnnotationOverlay: View {
         context.fill(Path(rect), with: .color(.white.opacity(0.6)))
         context.stroke(Path(rect), with: .color(Color(annotation.color)), lineWidth: 1)
     }
+
+    private func drawPixelate(context: GraphicsContext, annotation: DrawingAnnotation) {
+        let rect = annotation.rect
+        // Render as a grid of solid color tiles to suggest pixelation
+        let tileSize: CGFloat = max(4, annotation.blurRadius / 5)
+        let cols = max(1, Int(rect.width / tileSize))
+        let rows = max(1, Int(rect.height / tileSize))
+        let actualTileW = rect.width / CGFloat(cols)
+        let actualTileH = rect.height / CGFloat(rows)
+
+        // Checkerboard of two grays to indicate pixelation area
+        for row in 0..<rows {
+            for col in 0..<cols {
+                let tileRect = CGRect(
+                    x: rect.minX + CGFloat(col) * actualTileW,
+                    y: rect.minY + CGFloat(row) * actualTileH,
+                    width: actualTileW,
+                    height: actualTileH
+                )
+                let isEven = (row + col) % 2 == 0
+                context.fill(
+                    Path(tileRect),
+                    with: .color(isEven ? Color.gray.opacity(0.5) : Color.gray.opacity(0.3))
+                )
+            }
+        }
+        // Border
+        context.stroke(Path(rect), with: .color(Color(annotation.color)), lineWidth: 1.5)
+    }
     
     private func drawSpotlight(context: GraphicsContext, annotation: DrawingAnnotation) {
         let rect = annotation.rect
         context.stroke(Path(ellipseIn: rect), with: .color(Color(annotation.color)), lineWidth: annotation.lineWidth)
+    }
+
+    private func drawCallout(context: GraphicsContext, annotation: DrawingAnnotation) {
+        let rect = annotation.rect
+        guard rect.width > 4, rect.height > 4 else { return }
+
+        // Speech bubble: rounded rect body + triangular tail at bottom-left
+        let cornerRadius: CGFloat = min(10, rect.width * 0.15)
+        let tailW: CGFloat = min(16, rect.width * 0.2)
+        let tailH: CGFloat = min(12, rect.height * 0.3)
+        let tailX = rect.minX + cornerRadius * 1.5
+
+        let bubble = Path { p in
+            // Start at top-left, going clockwise
+            p.move(to: CGPoint(x: rect.minX + cornerRadius, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.minY))
+            p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + cornerRadius),
+                           control: CGPoint(x: rect.maxX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerRadius))
+            p.addQuadCurve(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY),
+                           control: CGPoint(x: rect.maxX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: tailX + tailW, y: rect.maxY))
+            // Tail
+            p.addLine(to: CGPoint(x: tailX, y: rect.maxY + tailH))
+            p.addLine(to: CGPoint(x: tailX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.minX + cornerRadius, y: rect.maxY))
+            p.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - cornerRadius),
+                           control: CGPoint(x: rect.minX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + cornerRadius))
+            p.addQuadCurve(to: CGPoint(x: rect.minX + cornerRadius, y: rect.minY),
+                           control: CGPoint(x: rect.minX, y: rect.minY))
+            p.closeSubpath()
+        }
+
+        let color = Color(annotation.color)
+        context.fill(bubble, with: .color(color.opacity(0.15)))
+        context.stroke(bubble, with: .color(color), lineWidth: annotation.lineWidth)
+
+        // Draw annotation text if any
+        if !annotation.text.isEmpty {
+            let label = Text(annotation.text)
+                .font(.system(size: annotation.fontSize))
+                .foregroundColor(color)
+            context.draw(label,
+                         at: CGPoint(x: rect.minX + 8, y: rect.midY),
+                         anchor: .leading)
+        }
     }
     
     private func drawStep(context: GraphicsContext, annotation: DrawingAnnotation) {
@@ -520,7 +738,7 @@ struct CurrentDrawingOverlay: View {
             context.opacity = annotation.opacity
             
             switch editorState.selectedTool {
-            case .pen, .highlighter, .eraser:
+            case .pen, .freehand, .highlighter, .eraser:
                 if let path = currentPath {
                     let swiftUIPath = Path(path)
                     context.stroke(
@@ -568,7 +786,7 @@ struct CurrentDrawingOverlay: View {
                 }
                 context.stroke(arrowPath, with: .color(Color(annotation.color)), lineWidth: annotation.lineWidth)
                 
-            case .shape, .blur, .spotlight, .callout, .crop:
+            case .shape, .blur, .pixelate, .spotlight, .callout, .crop:
                 let rect = CGRect(
                     x: min(dragStart.x, dragCurrent.x),
                     y: min(dragStart.y, dragCurrent.y),
@@ -584,10 +802,58 @@ struct CurrentDrawingOverlay: View {
                     path = Path(rect)
                 }
                 
-                if annotation.isFilled {
-                    context.fill(path, with: .color(Color(annotation.color).opacity(0.3)))
+                // Special styling for pixelate tool
+                if editorState.selectedTool == .pixelate {
+                    let tileSize: CGFloat = 8
+                    let cols = max(1, Int(rect.width / tileSize))
+                    let rows = max(1, Int(rect.height / tileSize))
+                    let tw = rect.width / CGFloat(cols)
+                    let th = rect.height / CGFloat(rows)
+                    for row in 0..<rows {
+                        for col in 0..<cols {
+                            let tile = CGRect(x: rect.minX + CGFloat(col)*tw,
+                                              y: rect.minY + CGFloat(row)*th,
+                                              width: tw, height: th)
+                            let isEven = (row + col) % 2 == 0
+                            context.fill(Path(tile), with: .color(isEven ? Color.gray.opacity(0.45) : Color.gray.opacity(0.25)))
+                        }
+                    }
+                    context.stroke(path, with: .color(.white), lineWidth: 1.5)
                 }
-                context.stroke(path, with: .color(Color(annotation.color)), lineWidth: annotation.lineWidth)
+                // Special styling for crop tool
+                else if editorState.selectedTool == .crop {
+                    // Draw semi-transparent overlay outside crop area
+                    context.opacity = 0.5
+                    context.fill(Path(CGRect(x: 0, y: 0, width: size.width, height: size.height)), with: .color(.black.opacity(0.5)))
+                    
+                    // Draw crop area with border
+                    context.opacity = 1.0
+                    context.stroke(path, with: .color(.white), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                    
+                    // Draw crop guidelines (rule of thirds)
+                    let thirdWidth = rect.width / 3
+                    let thirdHeight = rect.height / 3
+                    
+                    let guidelines = Path { p in
+                        // Vertical lines
+                        p.move(to: CGPoint(x: rect.minX + thirdWidth, y: rect.minY))
+                        p.addLine(to: CGPoint(x: rect.minX + thirdWidth, y: rect.maxY))
+                        p.move(to: CGPoint(x: rect.minX + 2 * thirdWidth, y: rect.minY))
+                        p.addLine(to: CGPoint(x: rect.minX + 2 * thirdWidth, y: rect.maxY))
+                        
+                        // Horizontal lines
+                        p.move(to: CGPoint(x: rect.minX, y: rect.minY + thirdHeight))
+                        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + thirdHeight))
+                        p.move(to: CGPoint(x: rect.minX, y: rect.minY + 2 * thirdHeight))
+                        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + 2 * thirdHeight))
+                    }
+                    context.stroke(guidelines, with: .color(.white.opacity(0.5)), lineWidth: 1)
+                } else if annotation.isFilled {
+                    context.fill(path, with: .color(Color(annotation.color).opacity(0.3)))
+                    context.stroke(path, with: .color(Color(annotation.color)), lineWidth: annotation.lineWidth)
+                } else {
+                    context.stroke(path, with: .color(Color(annotation.color)), lineWidth: annotation.lineWidth)
+                }
                 
             default:
                 break
@@ -598,18 +864,20 @@ struct CurrentDrawingOverlay: View {
 
 // MARK: - Text Editor Sheet
 struct TextEditorSheet: View {
+    var title: String = "Add Text"
     @State private var text: String
     let onSave: (String) -> Void
     @Environment(\.dismiss) private var dismiss
-    
-    init(text: String, onSave: @escaping (String) -> Void) {
+
+    init(title: String = "Add Text", text: String, onSave: @escaping (String) -> Void) {
+        self.title = title
         self._text = State(initialValue: text)
         self.onSave = onSave
     }
-    
+
     var body: some View {
         VStack(spacing: 20) {
-            Text("Add Text")
+            Text(title)
                 .font(.title2)
                 .fontWeight(.bold)
             

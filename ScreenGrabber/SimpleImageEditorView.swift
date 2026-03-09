@@ -25,23 +25,23 @@ struct SimpleImageEditorView: View {
             HStack {
                 // Drawing tools
                 HStack(spacing: 12) {
-                    ToolButton(tool: "arrow", icon: "arrow.up.right", isSelected: selectedTool == "arrow") {
+                    SimpleToolButton(tool: "arrow", icon: "arrow.up.right", isSelected: selectedTool == "arrow") {
                         selectedTool = "arrow"
                     }
                     
-                    ToolButton(tool: "pen", icon: "pencil", isSelected: selectedTool == "pen") {
+                    SimpleToolButton(tool: "pen", icon: "pencil", isSelected: selectedTool == "pen") {
                         selectedTool = "pen"
                     }
                     
-                    ToolButton(tool: "rectangle", icon: "rectangle", isSelected: selectedTool == "rectangle") {
+                    SimpleToolButton(tool: "rectangle", icon: "rectangle", isSelected: selectedTool == "rectangle") {
                         selectedTool = "rectangle"
                     }
                     
-                    ToolButton(tool: "circle", icon: "circle", isSelected: selectedTool == "circle") {
+                    SimpleToolButton(tool: "circle", icon: "circle", isSelected: selectedTool == "circle") {
                         selectedTool = "circle"
                     }
                     
-                    ToolButton(tool: "text", icon: "textformat", isSelected: selectedTool == "text") {
+                    SimpleToolButton(tool: "text", icon: "textformat", isSelected: selectedTool == "text") {
                         selectedTool = "text"
                     }
                     
@@ -144,9 +144,9 @@ struct SimpleImageEditorView: View {
         annotation.lineWidth = lineWidth
         annotation.points = currentPath
         
-        if currentPath.count >= 2 {
-            let start = currentPath.first!
-            let end = currentPath.last!
+        if currentPath.count >= 2,
+           let start = currentPath.first,
+           let end = currentPath.last {
             annotation.startPoint = start
             annotation.endPoint = end
             annotation.rect = CGRect(
@@ -296,7 +296,10 @@ struct SimpleImageEditorView: View {
                 try pngData.write(to: imageURL)
                 
                 // Show success notification
-                ScreenCaptureManager.shared.showWelcomeNotification()
+                ScreenCaptureManager.shared.showNotification(
+                    title: "Image Saved",
+                    message: "Your edited image has been saved successfully"
+                )
             } catch {
                 print("Failed to save edited image: \(error)")
             }
@@ -304,7 +307,10 @@ struct SimpleImageEditorView: View {
     }
 }
 
-struct ToolButton: View {
+// MARK: - Local Tool Button for Simple Editor
+// Note: This is a simplified version for this specific editor
+// Different from EditorUIComponents.ToolButton which uses EditorTool enum
+struct SimpleToolButton: View {
     let tool: String
     let icon: String
     let isSelected: Bool

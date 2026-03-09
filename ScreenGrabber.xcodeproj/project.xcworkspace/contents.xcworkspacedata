@@ -4,4 +4,10 @@
    <FileRef
       location = "self:">
    </FileRef>
+   <FileRef
+      location = "group:FIX_INSTRUCTIONS.md">
+   </FileRef>
+   <FileRef
+      location = "group:FIXES_APPLIED.md">
+   </FileRef>
 </Workspace>

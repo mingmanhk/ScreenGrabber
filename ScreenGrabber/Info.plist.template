@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Information -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	
+	<!-- Privacy - Folder Access Usage Descriptions -->
+	<!-- These help the app appear in Full Disk Access and folder permission dialogs -->
+	
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>ScreenGrabber needs access to save screenshots to your Desktop folder.</string>
+	
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>ScreenGrabber needs access to save screenshots to your Documents folder.</string>
+	
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>ScreenGrabber needs access to save screenshots to your Downloads folder.</string>
+	
+	<!-- Privacy - Screen Recording (Required) -->
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>ScreenGrabber needs permission to capture your screen to take screenshots and recordings.</string>
+	
+	<!-- Privacy - Accessibility (Required) -->
+	<key>NSAppleEventsUsageDescription</key>
+	<string>ScreenGrabber uses Apple Events to capture window information and automate scrolling captures.</string>
+	
+	<!-- Privacy - Microphone (Optional, for screen recordings with audio) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ScreenGrabber needs microphone access to record audio with screen recordings.</string>
+	
+	<!-- Privacy - Camera (Optional, if you add webcam overlay features) -->
+	<key>NSCameraUsageDescription</key>
+	<string>ScreenGrabber needs camera access to add webcam overlay to screen recordings.</string>
+	
+	<!-- App Capabilities -->
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	
+	<!-- Allow app to run in background for capture operations -->
+	<key>LSUIElement</key>
+	<false/>
+	
+	<!-- Menu bar app support (set to true if you want menu-bar-only mode) -->
+	<key>LSBackgroundOnly</key>
+	<false/>
+	
+	<!-- Document Types (if you want to open screenshots) -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.image</string>
+				<string>public.png</string>
+				<string>public.jpeg</string>
+				<string>com.compuserve.gif</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- URL Schemes (for deep linking) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.yourcompany.screengrabber</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>screengrabber</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- App Transport Security (if you need network access for uploads) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+	</dict>
+	
+	<!-- High Resolution Display Support -->
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	
+	<!-- Principal Class -->
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	
+	<!-- Support for Dark Mode -->
+	<key>NSRequiresAquaSystemAppearance</key>
+	<false/>
+</dict>
+</plist>

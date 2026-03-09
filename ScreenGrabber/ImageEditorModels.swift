@@ -10,85 +10,41 @@ import AppKit
 import SwiftUI
 import Combine
 
-// MARK: - Editor Tool Types
-enum EditorTool: String, CaseIterable {
-    case selection = "selection"
-    case arrow = "arrow"
-    case highlighter = "highlighter"
-    case pen = "pen"
-    case line = "line"
-    case shape = "shape"
-    case text = "text"
-    case blur = "blur"
-    case spotlight = "spotlight"
-    case callout = "callout"
-    case crop = "crop"
-    case eraser = "eraser"
-    case fill = "fill"
-    case magicWand = "magicWand"
-    case magnify = "magnify"
-    case move = "move"
-    case cutOut = "cutOut"
-    case stamp = "stamp"
-    case step = "step"
+// MARK: - Editor Action Types
+enum EditorAction: String, CaseIterable, Identifiable {
+    case undo = "undo"
+    case redo = "redo"
+    case save = "save"
+    case export = "export"
+    case clear = "clear"
     
-    var displayName: String {
-        switch self {
-        case .selection: return "Selection"
-        case .arrow: return "Arrow"
-        case .highlighter: return "Highlighter"
-        case .pen: return "Pen"
-        case .line: return "Line"
-        case .shape: return "Shape"
-        case .text: return "Text"
-        case .blur: return "Blur"
-        case .spotlight: return "Spotlight"
-        case .callout: return "Callout"
-        case .crop: return "Crop"
-        case .eraser: return "Eraser"
-        case .fill: return "Fill"
-        case .magicWand: return "Magic Wand"
-        case .magnify: return "Magnify"
-        case .move: return "Move"
-        case .cutOut: return "Cut Out"
-        case .stamp: return "Stamp"
-        case .step: return "Step"
-        }
-    }
+    var id: String { rawValue }
     
     var icon: String {
         switch self {
-        case .selection: return "rectangle.dashed"
-        case .arrow: return "arrow.up.right"
-        case .highlighter: return "highlighter"
-        case .pen: return "pencil"
-        case .line: return "line.diagonal"
-        case .shape: return "circle"
-        case .text: return "textformat"
-        case .blur: return "camera.filters"
-        case .spotlight: return "flashlight.on.fill"
-        case .callout: return "message"
-        case .crop: return "crop"
-        case .eraser: return "eraser"
-        case .fill: return "paintbrush.fill"
-        case .magicWand: return "wand.and.stars"
-        case .magnify: return "magnifyingglass"
-        case .move: return "arrow.up.and.down.and.arrow.left.and.right"
-        case .cutOut: return "scissors"
-        case .stamp: return "seal"
-        case .step: return "1.circle"
+        case .undo: return "arrow.uturn.backward"
+        case .redo: return "arrow.uturn.forward"
+        case .save: return "square.and.arrow.down"
+        case .export: return "square.and.arrow.up"
+        case .clear: return "trash"
         }
     }
 }
 
+// MARK: - Editor Tool Types
+// NOTE: EditorTool enum is now defined in EditorModels.swift
+// This file uses that centralized definition
+
 // MARK: - Shape Types
-enum ShapeType: String, CaseIterable {
+enum ShapeType: String, CaseIterable, Identifiable {
     case rectangle = "rectangle"
     case ellipse = "ellipse"
     case roundedRectangle = "roundedRectangle"
     case triangle = "triangle"
     case star = "star"
     case polygon = "polygon"
+    
+    var id: String { rawValue }
     
     var displayName: String {
         switch self {
@@ -98,6 +54,17 @@ enum ShapeType: String, CaseIterable {
         case .triangle: return "Triangle"
         case .star: return "Star"
         case .polygon: return "Polygon"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .rectangle: return "rectangle"
+        case .ellipse: return "circle"
+        case .roundedRectangle: return "rectangle.roundedtop"
+        case .triangle: return "triangle"
+        case .star: return "star"
+        case .polygon: return "hexagon"
         }
     }
 }
@@ -147,6 +114,7 @@ enum ArrowStyle: String, CaseIterable {
 }
 
 // MARK: - Editor State
+@MainActor
 class ImageEditorState: ObservableObject {
     @Published var selectedTool: EditorTool = .selection
     @Published var currentColor: NSColor = .red
@@ -306,3 +274,21 @@ struct AnnotationData: Codable {
         return annotation
     }
 }
+// MARK: - Lightweight Editor Models for Overlay
+struct EditorAnnotation: Identifiable {
+    let id = UUID()
+    var type: EditorTool
+    var startPoint: CGPoint
+    var endPoint: CGPoint
+    var color: NSColor
+    var lineWidth: CGFloat
+    
+    init(type: EditorTool, startPoint: CGPoint, endPoint: CGPoint, color: NSColor, lineWidth: CGFloat) {
+        self.type = type
+        self.startPoint = startPoint
+        self.endPoint = endPoint
+        self.color = color
+        self.lineWidth = lineWidth
+    }
+}
+

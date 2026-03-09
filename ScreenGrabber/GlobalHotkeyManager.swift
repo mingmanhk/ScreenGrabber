@@ -16,27 +16,37 @@ class GlobalHotkeyManager {
     private var onHotkeyPressed: (() -> Void)?
     
     private init() {}
-    
+
+    deinit {
+        // Ensure Carbon resources are freed when the singleton is deallocated
+        if let hotKeyRef = hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+        }
+        if let eventHandler = eventHandler {
+            RemoveEventHandler(eventHandler)
+        }
+    }
+
     /// Registers a global hotkey.
     /// - Returns: `true` if the hotkey was registered successfully, `false` otherwise (e.g., due to a conflict).
     func registerHotkey(_ hotkey: String, action: @escaping () -> Void) -> Bool {
         // Unregister existing hotkey first
         unregisterHotkey()
-        
+
         guard let (keyCode, modifiers) = parseHotkey(hotkey) else {
-            print("Invalid hotkey format: \(hotkey)")
+            CaptureLogger.log(.debug, "Invalid hotkey format: \(hotkey)", level: .error)
             return false
         }
-        
+
         self.onHotkeyPressed = action
-        
+
         // Install event handler
         var eventTypeSpec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: OSType(kEventHotKeyPressed))
         let eventHandlerUPP: EventHandlerUPP = { (nextHandler, theEvent, userData) -> OSStatus in
             GlobalHotkeyManager.shared.handleHotkeyEvent(theEvent)
             return noErr
         }
-        
+
         let result = InstallEventHandler(
             GetApplicationEventTarget(),
             eventHandlerUPP,
@@ -45,13 +55,13 @@ class GlobalHotkeyManager {
             nil,
             &eventHandler
         )
-        
+
         if result != noErr {
-            print("Failed to install event handler: \(result)")
-            unregisterHotkey() // Clean up partially installed handler
+            CaptureLogger.log(.debug, "Failed to install Carbon event handler (OSStatus \(result))", level: .error)
+            unregisterHotkey()
             return false
         }
-        
+
         // Register the hotkey
         let hotkeyID = EventHotKeyID(signature: OSType(1234), id: UInt32(1))
         let registerResult = RegisterEventHotKey(
@@ -62,24 +72,26 @@ class GlobalHotkeyManager {
             0,
             &hotKeyRef
         )
-        
+
         if registerResult != noErr {
-            print("Failed to register hotkey: \(registerResult)")
             if registerResult == eventHotKeyExistsErr {
-                print("Hotkey conflict: The hotkey '\(hotkey)' is already in use by another application.")
+                CaptureLogger.log(.debug, "Hotkey conflict: '\(hotkey)' is already in use by another app", level: .warning)
+            } else {
+                CaptureLogger.log(.debug, "Failed to register hotkey '\(hotkey)' (OSStatus \(registerResult))", level: .error)
             }
-            unregisterHotkey() // Clean up
+            unregisterHotkey()
             return false
         }
-        
-        print("Successfully registered hotkey: \(hotkey)")
+
+        CaptureLogger.log(.debug, "Registered global hotkey: \(hotkey)", level: .info)
         return true
     }
-    
+
     func unregisterHotkey() {
         if let hotKeyRef = hotKeyRef {
             UnregisterEventHotKey(hotKeyRef)
             self.hotKeyRef = nil
+            CaptureLogger.log(.debug, "Unregistered global hotkey", level: .info)
         }
         
         if let eventHandler = eventHandler {
@@ -88,6 +100,30 @@ class GlobalHotkeyManager {
         }
         
         onHotkeyPressed = nil
+    }
+    
+    /// Returns true if a hotkey is currently registered
+    var isHotkeyRegistered: Bool {
+        return hotKeyRef != nil
+    }
+    
+    /// Get a user-friendly description of modifier keys
+    func hotkeyDescription(_ hotkey: String) -> String {
+        var description = ""
+        if hotkey.contains("⌘") { description += "Command + " }
+        if hotkey.contains("⇧") { description += "Shift + " }
+        if hotkey.contains("⌥") { description += "Option + " }
+        if hotkey.contains("⌃") { description += "Control + " }
+        
+        // Get the key character
+        let keyChar = hotkey.replacingOccurrences(of: "⌘", with: "")
+            .replacingOccurrences(of: "⇧", with: "")
+            .replacingOccurrences(of: "⌥", with: "")
+            .replacingOccurrences(of: "⌃", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        description += keyChar.uppercased()
+        return description
     }
     
     private func handleHotkeyEvent(_ event: EventRef?) {
@@ -101,40 +137,59 @@ class GlobalHotkeyManager {
         let cleanHotkey = components.joined()
         
         var modifiers = 0
-        var keyChar = ""
+        var keyPart = cleanHotkey
         
-        // Parse modifiers
-        if cleanHotkey.contains("⌘") {
+        // Parse modifiers and remove them from the key part
+        if cleanHotkey.contains("⌘") || cleanHotkey.lowercased().contains("cmd") || cleanHotkey.lowercased().contains("command") {
             modifiers |= cmdKey
+            keyPart = keyPart.replacingOccurrences(of: "⌘", with: "")
+                .replacingOccurrences(of: "cmd", with: "", options: .caseInsensitive)
+                .replacingOccurrences(of: "command", with: "", options: .caseInsensitive)
         }
-        if cleanHotkey.contains("⇧") {
+        if cleanHotkey.contains("⇧") || cleanHotkey.lowercased().contains("shift") {
             modifiers |= shiftKey
+            keyPart = keyPart.replacingOccurrences(of: "⇧", with: "")
+                .replacingOccurrences(of: "shift", with: "", options: .caseInsensitive)
         }
-        if cleanHotkey.contains("⌥") {
+        if cleanHotkey.contains("⌥") || cleanHotkey.lowercased().contains("opt") || cleanHotkey.lowercased().contains("alt") {
             modifiers |= optionKey
+            keyPart = keyPart.replacingOccurrences(of: "⌥", with: "")
+                .replacingOccurrences(of: "opt", with: "", options: .caseInsensitive)
+                .replacingOccurrences(of: "alt", with: "", options: .caseInsensitive)
         }
-        if cleanHotkey.contains("⌃") {
+        if cleanHotkey.contains("⌃") || cleanHotkey.lowercased().contains("ctrl") || cleanHotkey.lowercased().contains("control") {
             modifiers |= controlKey
+            keyPart = keyPart.replacingOccurrences(of: "⌃", with: "")
+                .replacingOccurrences(of: "ctrl", with: "", options: .caseInsensitive)
+                .replacingOccurrences(of: "control", with: "", options: .caseInsensitive)
         }
         
-        // Extract the key character (last character)
-        if let lastChar = cleanHotkey.last, !["⌘", "⇧", "⌥", "⌃"].contains(String(lastChar)) {
-            keyChar = String(lastChar).uppercased()
-        } else {
+        // Clean up the key part
+        keyPart = keyPart.trimmingCharacters(in: .whitespacesAndNewlines)
+        keyPart = keyPart.replacingOccurrences(of: "+", with: "")
+        keyPart = keyPart.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !keyPart.isEmpty else {
+            CaptureLogger.log(.debug, "No key character found in hotkey string: \(hotkey)", level: .warning)
             return nil
         }
-        
+
+        // Convert key to uppercase for consistency
+        let keyChar = keyPart.uppercased()
+
         // Convert key character to virtual key code
         guard let keyCode = virtualKeyCodeForCharacter(keyChar) else {
-            print("Unknown key character: \(keyChar)")
+            CaptureLogger.log(.debug, "Unknown key character '\(keyChar)' in hotkey: \(hotkey)", level: .warning)
             return nil
         }
-        
+
+        CaptureLogger.log(.debug, "Parsed hotkey '\(hotkey)' → keyCode: \(keyCode), modifiers: \(modifiers)", level: .info)
         return (keyCode: keyCode, modifiers: modifiers)
     }
     
     private func virtualKeyCodeForCharacter(_ char: String) -> Int? {
         let keyMap: [String: Int] = [
+            // Letters
             "A": kVK_ANSI_A, "B": kVK_ANSI_B, "C": kVK_ANSI_C, "D": kVK_ANSI_D,
             "E": kVK_ANSI_E, "F": kVK_ANSI_F, "G": kVK_ANSI_G, "H": kVK_ANSI_H,
             "I": kVK_ANSI_I, "J": kVK_ANSI_J, "K": kVK_ANSI_K, "L": kVK_ANSI_L,
@@ -142,9 +197,30 @@ class GlobalHotkeyManager {
             "Q": kVK_ANSI_Q, "R": kVK_ANSI_R, "S": kVK_ANSI_S, "T": kVK_ANSI_T,
             "U": kVK_ANSI_U, "V": kVK_ANSI_V, "W": kVK_ANSI_W, "X": kVK_ANSI_X,
             "Y": kVK_ANSI_Y, "Z": kVK_ANSI_Z,
+            // Numbers
             "0": kVK_ANSI_0, "1": kVK_ANSI_1, "2": kVK_ANSI_2, "3": kVK_ANSI_3,
             "4": kVK_ANSI_4, "5": kVK_ANSI_5, "6": kVK_ANSI_6, "7": kVK_ANSI_7,
-            "8": kVK_ANSI_8, "9": kVK_ANSI_9
+            "8": kVK_ANSI_8, "9": kVK_ANSI_9,
+            // Function Keys
+            "F1": kVK_F1, "F2": kVK_F2, "F3": kVK_F3, "F4": kVK_F4,
+            "F5": kVK_F5, "F6": kVK_F6, "F7": kVK_F7, "F8": kVK_F8,
+            "F9": kVK_F9, "F10": kVK_F10, "F11": kVK_F11, "F12": kVK_F12,
+            // Special Keys
+            "SPACE": kVK_Space, " ": kVK_Space,
+            "RETURN": kVK_Return, "ENTER": kVK_Return,
+            "TAB": kVK_Tab,
+            "DELETE": kVK_Delete, "BACKSPACE": kVK_Delete,
+            "ESCAPE": kVK_Escape, "ESC": kVK_Escape,
+            // Arrow Keys
+            "LEFT": kVK_LeftArrow, "RIGHT": kVK_RightArrow,
+            "UP": kVK_UpArrow, "DOWN": kVK_DownArrow,
+            // Symbols
+            "-": kVK_ANSI_Minus, "=": kVK_ANSI_Equal,
+            "[": kVK_ANSI_LeftBracket, "]": kVK_ANSI_RightBracket,
+            ";": kVK_ANSI_Semicolon, "'": kVK_ANSI_Quote,
+            ",": kVK_ANSI_Comma, ".": kVK_ANSI_Period,
+            "/": kVK_ANSI_Slash, "\\": kVK_ANSI_Backslash,
+            "`": kVK_ANSI_Grave
         ]
         
         return keyMap[char.uppercased()]

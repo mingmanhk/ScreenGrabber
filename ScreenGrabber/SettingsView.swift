@@ -2,144 +2,124 @@
 //  SettingsView.swift
 //  ScreenGrabber
 //
-//  Created by Victor Lam on 10/23/25.
+//  Shared components used by the canonical SettingsWindow:
+//    - HotkeyConfigSheet  — modal for changing the global capture hotkey
+//    - FeatureBadge       — pill badge used in the About pane
+//
+//  The old `SettingsView` struct has been removed; the app uses SettingsWindow instead.
 //
 
 import SwiftUI
+import SwiftData
 
-struct SettingsView: View {
-    @State private var currentHotkey = "⌘⇧C"
-    @State private var launchAtLogin = false
-    @State private var showNotifications = true
-    
-    var body: some View {
-        TabView {
-            // General Settings
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Global Hotkey")
-                        .font(.headline)
-                    
-                    HStack {
-                        Text("Current hotkey:")
-                        
-                        Text(currentHotkey)
-                            .font(.system(.body, design: .monospaced))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.secondary.opacity(0.2))
-                            .cornerRadius(4)
-                        
-                        Spacer()
-                        
+// MARK: - Hotkey Config Sheet
 
-                    }
-                    
-                    Text("Press this key combination anywhere to capture a screenshot.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Divider()
-                
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Preferences")
-                        .font(.headline)
-                    
-                    Toggle("Launch at login", isOn: $launchAtLogin)
-                    Toggle("Show notifications", isOn: $showNotifications)
-                }
-                
-                Divider()
-                
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Screenshots Folder")
-                        .font(.headline)
-                    
-                    HStack {
-                        Text("Location:")
-                        Text("~/Pictures/ScreenGrabber")
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        Button("Open in Finder") {
-                            let folderURL = ScreenCaptureManager.shared.getScreenGrabberFolderURL()
-                            NSWorkspace.shared.open(folderURL)
-                        }
-                    }
-                    
-                    Text("All screenshots are automatically saved to this folder.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-            }
-            .padding()
-            .tabItem {
-                Label("General", systemImage: "gear")
-            }
-            
-            // About Tab
-            VStack(spacing: 20) {
-                VStack(spacing: 12) {
-                    Image(systemName: "camera.viewfinder")
-                        .font(.system(size: 60))
-                        .foregroundColor(.accentColor)
-                    
-                    Text("Screen Grabber")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    
-                    Text("Version 1.0")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                Text("A powerful screenshot tool for macOS with editing capabilities and automatic file organization.")
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Features:")
-                        .font(.headline)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label("Global hotkey support", systemImage: "keyboard")
-                        Label("Menu bar integration", systemImage: "menubar.rectangle")
-                        Label("Automatic file saving", systemImage: "folder")
-                        Label("Multiple capture methods", systemImage: "camera.fill")
-                        Label("Built-in image editor", systemImage: "pencil.circle")
-                        Label("Clipboard integration", systemImage: "doc.on.clipboard")
-                    }
-                    .font(.body)
-                }
-                
-                Spacer()
-                
-                Text("© 2024 Screen Grabber. All rights reserved.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .tabItem {
-                Label("About", systemImage: "info.circle")
-            }
-        }
-        .frame(minWidth: 450, minHeight: 400)
-        .onAppear {
-            loadSettings()
-        }
+/// Presented as a sheet when the user taps "Change…" in General Settings.
+struct HotkeyConfigSheet: View {
+    @Binding var currentHotkey: String
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var newHotkey: String
+    @State private var errorMessage: String?
+
+    init(currentHotkey: Binding<String>) {
+        self._currentHotkey = currentHotkey
+        self._newHotkey = State(initialValue: currentHotkey.wrappedValue)
     }
-    
-    private func loadSettings() {
-        currentHotkey = UserDefaults.standard.string(forKey: "grabScreenHotkey") ?? "⌘⇧C"
-        showNotifications = UserDefaults.standard.bool(forKey: "showNotifications")
-        launchAtLogin = UserDefaults.standard.bool(forKey: "launchAtLogin")
+
+    var body: some View {
+        VStack(spacing: 24) {
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 60, height: 60)
+                Image(systemName: "keyboard")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+            }
+
+            VStack(spacing: 6) {
+                Text("Set Global Hotkey").font(.title2.bold())
+                Text("Press a key combination to trigger a capture from anywhere on your Mac.")
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            TextField("e.g. ⌘⇧C", text: $newHotkey)
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.center)
+                .font(.title3)
+                .padding(.horizontal)
+
+            if let msg = errorMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange)
+                    Text(msg).font(.caption).foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+            }
+
+            HStack(spacing: 12) {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .buttonStyle(.bordered)
+
+                Button("Save") {
+                    if saveHotkey() { dismiss() }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(newHotkey.trimmingCharacters(in: .whitespaces).isEmpty)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(30)
+        .frame(width: 400)
+    }
+
+    private func saveHotkey() -> Bool {
+        // Use the shared container — never create a new ModelContainer here
+        let ctx = ModelContext(ScreenGrabberApp.sharedModelContainer)
+        let success = GlobalHotkeyManager.shared.registerHotkey(newHotkey) {
+            let settings = SettingsManager.shared
+            DispatchQueue.main.async {
+                ScreenCaptureManager.shared.captureScreen(
+                    method: settings.selectedScreenOption,
+                    openOption: settings.selectedOpenOption,
+                    modelContext: ctx
+                )
+            }
+        }
+
+        if success {
+            UserDefaults.standard.set(newHotkey, forKey: "grabScreenHotkey")
+            currentHotkey = newHotkey
+            CaptureLogger.log(.debug, "Hotkey updated: \(newHotkey)")
+        } else {
+            errorMessage = "This shortcut is already in use. Please try another combination."
+            CaptureLogger.log(.error, "Failed to register hotkey: \(newHotkey)")
+        }
+        return success
     }
 }
 
+// MARK: - Feature Badge
 
+/// Small pill badge used in the About pane.
+struct FeatureBadge: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(Color.accentColor)
+            Text(text).font(.caption)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.accentColor.opacity(0.1)))
+    }
+}

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 
+    ================================================
+    COPY THESE KEYS INTO YOUR Info.plist FILE
+    ================================================
+    
+    Add these entries to your existing Info.plist file
+    to enable Files & Folders permissions.
+    
+    These keys make ScreenGrabber appear in:
+    System Settings → Privacy & Security → Files and Folders
+    ================================================
+    -->
+    
+    <!-- Files & Folders Permission Usage Descriptions -->
+    
+    <!-- Desktop Folder Access -->
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>ScreenGrabber needs access to your Desktop folder to save screenshots directly to your Desktop.</string>
+    
+    <!-- Documents Folder Access -->
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>ScreenGrabber needs access to your Documents folder to save screenshots and organized capture files.</string>
+    
+    <!-- Downloads Folder Access -->
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>ScreenGrabber needs access to your Downloads folder to save screenshots and screen recordings.</string>
+    
+    <!-- Pictures Folder (Optional - usually doesn't require permission) -->
+    <key>NSPicturesFolderUsageDescription</key>
+    <string>ScreenGrabber saves screenshots to the Pictures folder by default for easy organization.</string>
+    
+    <!-- Removable Volumes (Optional - for external drives) -->
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>ScreenGrabber can save screenshots to external drives if you choose a custom save location.</string>
+    
+    <!-- Network Volumes (Optional - for network locations) -->
+    <key>NSNetworkVolumesUsageDescription</key>
+    <string>ScreenGrabber can save screenshots to network drives if you choose a custom save location.</string>
+    
+    <!-- 
+    ================================================
+    ADDITIONAL PRIVACY USAGE DESCRIPTIONS
+    ================================================
+    You may also need these depending on your app's features:
+    -->
+    
+    <!-- Camera (if using for recordings) -->
+    <!-- <key>NSCameraUsageDescription</key> -->
+    <!-- <string>ScreenGrabber needs camera access to include your webcam in screen recordings.</string> -->
+    
+    <!-- Microphone (if recording audio) -->
+    <!-- <key>NSMicrophoneUsageDescription</key> -->
+    <!-- <string>ScreenGrabber needs microphone access to record audio with screen recordings.</string> -->
+    
+    <!-- 
+    ================================================
+    HOW TO ADD TO YOUR PROJECT
+    ================================================
+    
+    METHOD 1: Direct XML Editing
+    1. Open Info.plist in Xcode
+    2. Right-click → Open As → Source Code
+    3. Copy the keys above (between <dict> tags)
+    4. Paste inside your existing <dict> section
+    5. Save
+    
+    METHOD 2: Xcode Property List Editor
+    1. Open Info.plist
+    2. Hover over any row and click + button
+    3. Type the key name (e.g., NSDesktopFolderUsageDescription)
+    4. Set type to String
+    5. Paste the description value
+    6. Repeat for each key
+    
+    ================================================
+    VERIFICATION
+    ================================================
+    
+    After adding, verify in Terminal:
+    
+    plutil -p /path/to/ScreenGrabber.app/Contents/Info.plist | grep FolderUsage
+    
+    You should see all three descriptions listed.
+    
+    ================================================
+    -->
+    
+</dict>
+</plist>

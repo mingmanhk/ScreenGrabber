@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  ScreenGrabber
 //
-//  Created by Victor Lam on 10/23/25.
+//  Main library window — split layout with capture panel, screenshot grid, and bottom strip.
 //
 
 import SwiftUI
@@ -11,669 +11,338 @@ import AppKit
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+
     @State private var recentScreenshots: [URL] = []
-    @State private var selectedScreenOption: ScreenOption = .selectedArea
-    @State private var selectedOpenOption: OpenOption = .clipboard
-    @State private var showingImageEditor = false
+    @State private var showingEditor = false
     @State private var selectedImageURL: URL?
-    
+    @StateObject private var settingsManager = SettingsManager.shared
+    @ObservedObject private var settingsModel = SettingsModel.shared
+
+    // Countdown
+    @State private var showingCountdown = false
+    @State private var countdownValue = 0
+    @State private var countdownTask: Task<Void, Never>?
+
+    // Debounce reloads to prevent notification storms
+    @State private var reloadTask: Task<Void, Never>?
+
     var body: some View {
-        NavigationSplitView {
-            // Sidebar with settings
-            VStack(alignment: .leading, spacing: 20) {
-                // Header - Enhanced with App Logo
-                VStack(spacing: 12) {
-                    // App Logo - Try to load custom logo, fallback to icon
-                    Group {
-                        if let appIcon = NSImage(named: "AppIcon") ?? NSApp.applicationIconImage {
-                            Image(nsImage: appIcon)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 64, height: 64)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .strokeBorder(
-                                            LinearGradient(
-                                                colors: [
-                                                    Color.white.opacity(0.3),
-                                                    Color.white.opacity(0.1)
-                                                ],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1
-                                        )
-                                )
-                                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
-                        } else {
-                            // Fallback to system icon if no app icon is available
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.accentColor.opacity(0.2), Color.accentColor.opacity(0.05)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 64, height: 64)
-                                
-                                Image(systemName: "camera.viewfinder")
-                                    .font(.title)
-                                    .foregroundStyle(
-                                        LinearGradient(
-                                            colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                            }
+        ZStack {
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    CapturePanel(
+                        settingsManager: settingsManager,
+                        onCapture: captureScreen,
+                        onOpenEditor: {
+                            if let recent = recentScreenshots.first { openEditor(for: recent) }
                         }
-                    }
-                    
-                    Text("Screen Grabber")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "photo.stack")
-                            .font(.caption2)
-                        Text("\(recentScreenshots.count) screenshots")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                
-                Divider()
-                
-                // Settings
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Capture Settings")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal)
-                    
-                    // Screen method
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Screen Method")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 4) {
-                            ForEach(ScreenOption.allCases, id: \.self) { option in
-                                Button(action: {
-                                    selectedScreenOption = option
-                                }) {
-                                    HStack {
-                                        Image(systemName: option.icon)
-                                            .frame(width: 20)
-                                            .foregroundColor(selectedScreenOption == option ? Color.accentColor : .primary)
-                                        Text(option.displayName)
-                                        Spacer()
-                                        if selectedScreenOption == option {
-                                            Image(systemName: "checkmark")
-                                                .foregroundColor(Color.accentColor)
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        selectedScreenOption == option ? Color.accentColor.opacity(0.15) : Color.clear
-                                    )
-                                    .cornerRadius(6)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.primary)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    // Save To
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Save To")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                        
-                        VStack(spacing: 4) {
-                            ForEach(OpenOption.allCases, id: \.self) { option in
-                                Button(action: {
-                                    selectedOpenOption = option
-                                }) {
-                                    HStack {
-                                        Image(systemName: option.icon)
-                                            .frame(width: 20)
-                                            .foregroundColor(selectedOpenOption == option ? Color.accentColor : .primary)
-                                        Text(option.displayName)
-                                        Spacer()
-                                        if selectedOpenOption == option {
-                                            Image(systemName: "checkmark")
-                                                .foregroundColor(Color.accentColor)
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        selectedOpenOption == option ? Color.accentColor.opacity(0.15) : Color.clear
-                                    )
-                                    .cornerRadius(6)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.primary)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-                
-                Spacer()
-                
-                // Folder access
-                Button(action: openScreenGrabberFolder) {
-                    HStack {
-                        Image(systemName: "folder")
-                        Text("Open Screenshots Folder")
-                            .fontWeight(.medium)
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption)
-                    }
-                    .padding()
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal)
-                .padding(.bottom)
-            }
-            .frame(minWidth: 280)
-            .background(Color(NSColor.controlBackgroundColor))
-            
-        } detail: {
-            // Main screenshots view
-            ZStack(alignment: .bottom) {
-                VStack(spacing: 0) {
-                    // Header - Improved with quick capture button
-                    HStack {
-                        Text("Screenshots")
-                            .font(.title)
-                            .fontWeight(.bold)
-                        
-                        Spacer()
-                        
-                        // Refresh button in header
-                        Button(action: loadRecentScreenshots) {
-                            HStack(spacing: 8) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.accentColor.opacity(0.15))
-                                        .frame(width: 24, height: 24)
-                                    
-                                    Image(systemName: "arrow.clockwise")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(Color.accentColor)
-                                }
-                                
-                                Text("Refresh")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .fill(Color.accentColor.opacity(0.1))
-                                    .overlay(
-                                        Capsule()
-                                            .strokeBorder(Color.accentColor.opacity(0.2), lineWidth: 1)
-                                    )
-                            )
-                        }
-                        .buttonStyle(ScaleButtonStyle())
-                        .help("Refresh screenshot list")
-                    }
-                    .padding()
-                    
+                    )
+                    .frame(width: 300)
+
                     Divider()
-                    
-                    if recentScreenshots.isEmpty {
-                        // Empty state - Centered and improved
-                        VStack(spacing: 24) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.accentColor.opacity(0.1))
-                                    .frame(width: 120, height: 120)
-                                
-                                Image(systemName: "photo.on.rectangle")
-                                    .font(.system(size: 50, weight: .light))
-                                    .foregroundStyle(
-                                        LinearGradient(
-                                            colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                            }
-                            
-                            VStack(spacing: 8) {
-                                Text("No Screenshots Yet")
-                                    .font(.title)
-                                    .fontWeight(.semibold)
-                                
-                                Text("Capture your first screenshot to get started!")
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                            
-                          
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        // Screenshots grid
-                        ScrollView {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: 3), spacing: 20) {
-                                ForEach(recentScreenshots, id: \.self) { fileURL in
-                                    ScreenshotGridView(
-                                        fileURL: fileURL,
-                                        onEdit: {
-                                            selectedImageURL = fileURL
-                                            showingImageEditor = true
-                                        },
-                                        onDeleted: {
-                                            if let idx = recentScreenshots.firstIndex(of: fileURL) {
-                                                recentScreenshots.remove(at: idx)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                            .padding()
-                        }
-                    }
+
+                    libraryPanel
                 }
-                
-                // Floating bottom action bar - Centered capture button
-                HStack {
-                    Spacer()
-                    
-                    // Main centered capture button - RED DESIGN (match empty state style)
-                    Button(action: captureScreen) {
-                        HStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.black.opacity(0.35), Color.black.opacity(0.2)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 32, height: 32)
-                                    .overlay(
-                                        Circle()
-                                            .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5)
-                                    )
-                                
-                                Image(systemName: "camera.fill")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .accessibilityLabel("Take Screenshot")
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Take Screenshot")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.white)
-                                
-                                Text(selectedScreenOption.displayName)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.8))
-                            }
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.6))
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 14)
-                        .background(
-                            ZStack {
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.red.opacity(0.98),
-                                                Color.red.opacity(0.85)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                
-                                // Shine effect
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.white.opacity(0.15),
-                                                Color.clear
-                                            ],
-                                            startPoint: .top,
-                                            endPoint: .center
-                                        )
-                                    )
-                            }
-                            .overlay(
-                                Capsule()
-                                    .strokeBorder(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.white.opacity(0.3),
-                                                Color.white.opacity(0.1)
-                                            ],
-                                            startPoint: .top,
-                                            endPoint: .bottom
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
-                            .shadow(color: Color.red.opacity(0.5), radius: 12, x: 0, y: 8)
-                        )
-                    }
-                    .buttonStyle(ScaleButtonStyle())
-                    
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .background(
-                    VisualEffectBlur(material: .hudWindow, blendingMode: .withinWindow)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.08))
-                        )
-                        .padding(.horizontal, 12)
+
+                Divider()
+
+                BottomCapturesStrip(
+                    recentScreenshots: recentScreenshots,
+                    onEdit: { openEditor(for: $0) },
+                    onRefresh: loadRecentScreenshots
                 )
-                .padding(.bottom, 16)
+            }
+            .frame(minWidth: 1000, minHeight: 600)
+
+            if showingCountdown {
+                CaptureCountdownOverlay(countdown: countdownValue, onCancel: cancelCountdown)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.2), value: showingCountdown)
+            }
+        }
+        .sheet(isPresented: $showingEditor) {
+            if let url = selectedImageURL {
+                ScreenCaptureEditorView(fileURL: url)
+                    .frame(minWidth: 900, minHeight: 600)
             }
         }
         .onAppear {
-            // Test file system access on first load
-            ScreenCaptureManager.shared.testFileSystemAccess()
+            setupMonitor()
             loadRecentScreenshots()
         }
-        .sheet(isPresented: $showingImageEditor) {
-            if let url = selectedImageURL {
-                ImageEditorView(imageURL: url)
-            }
+        .onReceive(NotificationCenter.default.publisher(for: .screenshotCaptured)) { _ in
+            scheduleReload()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: ScreenshotMonitor.screenshotsChangedNotification)) { _ in
+            scheduleReload()
         }
     }
-    
+
+    // MARK: - Sub-views
+
+    @ViewBuilder
+    private var libraryPanel: some View {
+        ZStack {
+            Color(NSColor.windowBackgroundColor)
+
+            if recentScreenshots.isEmpty {
+                EmptyLibraryStateView()
+            } else {
+                ScrollView {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 180, maximum: 220), spacing: 20)],
+                        spacing: 20
+                    ) {
+                        ForEach(recentScreenshots, id: \.self) { url in
+                            ScreenshotCard(fileURL: url, onOpen: { openEditor(for: url) })
+                        }
+                    }
+                    .padding(24)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Actions
+
+    private func openEditor(for url: URL) {
+        selectedImageURL = url
+        showingEditor = true
+    }
+
     private func captureScreen() {
+        if settingsModel.timeDelayEnabled && settingsModel.timeDelaySeconds > 0 {
+            startCountdown(seconds: Int(settingsModel.timeDelaySeconds))
+        } else {
+            performCapture()
+        }
+    }
+
+    private func performCapture() {
         ScreenCaptureManager.shared.captureScreen(
-            method: selectedScreenOption,
-            openOption: selectedOpenOption,
+            method: settingsManager.selectedScreenOption,
+            openOption: settingsManager.selectedOpenOption,
             modelContext: modelContext
         )
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+    }
+
+    private func startCountdown(seconds: Int) {
+        countdownValue = seconds
+        withAnimation { showingCountdown = true }
+        countdownTask = Task { @MainActor in
+            for remaining in stride(from: seconds, through: 1, by: -1) {
+                guard !Task.isCancelled else { return }
+                countdownValue = remaining
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+            guard !Task.isCancelled else { return }
+            withAnimation { showingCountdown = false }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            performCapture()
+        }
+    }
+
+    private func cancelCountdown() {
+        countdownTask?.cancel()
+        countdownTask = nil
+        withAnimation { showingCountdown = false }
+    }
+
+    /// Debounces rapid successive reload requests (e.g. two notifications fired by a single capture).
+    private func scheduleReload() {
+        reloadTask?.cancel()
+        reloadTask = Task {
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 s debounce
+            guard !Task.isCancelled else { return }
             loadRecentScreenshots()
         }
     }
-    
+
     private func loadRecentScreenshots() {
-        recentScreenshots = ScreenCaptureManager.shared.loadRecentScreenshots()
+        Task {
+            guard let folder = await UnifiedCaptureManager.shared.getCapturesFolderURL() else {
+                await MainActor.run { self.recentScreenshots = [] }
+                return
+            }
+
+            let sorted = await Task.detached(priority: .userInitiated) {
+                // includingPropertiesForKeys pre-fetches dates — no extra I/O per file
+                let files = (try? FileManager.default.contentsOfDirectory(
+                    at: folder,
+                    includingPropertiesForKeys: [.creationDateKey],
+                    options: [.skipsHiddenFiles]
+                )) ?? []
+                return files
+                    .filter { ["png", "jpg", "jpeg"].contains($0.pathExtension.lowercased()) }
+                    .sorted {
+                        let d1 = (try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+                        let d2 = (try? $1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+                        return d1 > d2
+                    }
+            }.value
+
+            await MainActor.run { self.recentScreenshots = sorted }
+        }
     }
-    
-    private func openScreenGrabberFolder() {
-        let folderURL = ScreenCaptureManager.shared.getScreenGrabberFolderURL()
-        NSWorkspace.shared.open(folderURL)
+
+    private func setupMonitor() {
+        Task { @MainActor in
+            if let folderURL = await UnifiedCaptureManager.shared.getCapturesFolderURL() {
+                ScreenshotMonitor.shared.startMonitoring(url: folderURL)
+            }
+        }
     }
 }
 
-// MARK: - Screenshot Grid Item
-struct ScreenshotGridView: View {
-    let fileURL: URL
-    let onEdit: () -> Void
-    let onDeleted: () -> Void
-    
-    @State private var thumbnail: NSImage?
-    @State private var showingHover = false
-    
+// MARK: - Empty State
+
+struct EmptyLibraryStateView: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Thumbnail
-            Group {
-                if let thumbnail = thumbnail {
-                    Image(nsImage: thumbnail)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 200, height: 150)
-                        .clipped()
-                        .cornerRadius(8)
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 200, height: 150)
-                        .cornerRadius(8)
-                        .overlay(
-                            ProgressView()
-                                .controlSize(.small)
-                        )
+        VStack(spacing: 20) {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 64))
+                .foregroundStyle(.tertiary)
+
+            Text("No Screenshots Yet")
+                .font(.title2)
+                .fontWeight(.medium)
+
+            Text("Captured images will appear here")
+                .foregroundColor(.secondary)
+
+            ShortcutBadge(keys: ["⌘", "⇧", "1"], label: "Capture")
+                .padding(.top, 10)
+        }
+    }
+}
+
+struct ShortcutBadge: View {
+    let keys: [String]
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 2) {
+                ForEach(keys, id: \.self) { key in
+                    Text(key)
+                        .font(.system(size: 12, weight: .bold))
+                        .frame(width: 24, height: 24)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(4)
                 }
             }
-            .overlay(
-                // Hover overlay with Edit button added
-                VStack {
-                    Spacer()
-                    HStack(spacing: 8) {
-                        Button(action: { NSWorkspace.shared.open(fileURL) }) {
-                            VStack(spacing: 4) {
-                                Image(systemName: "eye.fill")
-                                    .font(.system(size: 14, weight: .semibold))
-                                Text("View")
-                                    .font(.system(size: 10, weight: .medium))
-                            }
-                            .foregroundColor(.white)
-                            .frame(width: 54, height: 54)
-                            .background(Color.blue.opacity(0.9))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .help("Open in Preview")
-                        
-                        Button(action: onEdit) {
-                            VStack(spacing: 4) {
-                                Image(systemName: "pencil.tip.crop.circle.fill")
-                                    .font(.system(size: 14, weight: .semibold))
-                                Text("Edit")
-                                    .font(.system(size: 10, weight: .medium))
-                            }
-                            .foregroundColor(.white)
-                            .frame(width: 54, height: 54)
-                            .background(Color.purple.opacity(0.9))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .help("Edit Screenshot")
-                        
-                        Button(action: deleteFile) {
-                            VStack(spacing: 4) {
-                                Image(systemName: "trash.fill")
-                                    .font(.system(size: 14, weight: .semibold))
-                                Text("Delete")
-                                    .font(.system(size: 10, weight: .medium))
-                            }
-                            .foregroundColor(.white)
-                            .frame(width: 54, height: 54)
-                            .background(Color.red.opacity(0.9))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .help("Delete")
-                        
-                        Spacer()
-                    }
-                    .padding(10)
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.6)]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                }
-                .opacity(showingHover ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: showingHover)
-                .cornerRadius(8)
-            )
-            .onHover { isHovering in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showingHover = isHovering
-                }
+            Text(label).font(.caption).foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - Screenshot Card
+
+struct ScreenshotCard: View {
+    let fileURL: URL
+    let onOpen: () -> Void
+
+    @State private var isHovering = false
+    @State private var fileDate: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            thumbnailArea
+            Divider()
+            footer
+        }
+        .background(Color(NSColor.windowBackgroundColor))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .onHover { hovering in withAnimation(.easeInOut(duration: 0.15)) { isHovering = hovering } }
+        .onTapGesture { onOpen() }
+        .task(id: fileURL) { fileDate = await resolveFileDate(fileURL) }
+    }
+
+    private var thumbnailArea: some View {
+        ZStack {
+            Color.black.opacity(0.05)
+
+            AsyncThumbnail(url: fileURL, maxPixelSize: 440, contentMode: .fit)
+                .padding(8)
+
+            if isHovering {
+                Color.black.opacity(0.3)
+                Button("Edit") { onOpen() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
             }
-            
-            // File info
-            VStack(alignment: .leading, spacing: 4) {
+        }
+        .frame(height: 130)
+        .clipped()
+    }
+
+    private var footer: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(fileURL.lastPathComponent)
-                    .font(.subheadline)
+                    .font(.caption)
                     .fontWeight(.medium)
                     .lineLimit(1)
-                
-                Text(formatFileDate())
-                    .font(.caption)
+                    .truncationMode(.middle)
+                Text(fileDate)
+                    .font(.caption2)
                     .foregroundColor(.secondary)
             }
-            .frame(width: 200, alignment: .leading)
+            Spacer()
         }
-        .onAppear {
-            loadThumbnail()
-        }
-        .contextMenu {
-            Button("Open") {
-                NSWorkspace.shared.open(fileURL)
-            }
-            
-            Button("Edit") {
-                onEdit()
-            }
-            
-            Button("Delete") {
-                deleteFile()
-            }
-            
-            Divider()
-            
-            Button("Show in Finder") {
-                NSWorkspace.shared.selectFile(fileURL.path, inFileViewerRootedAtPath: fileURL.deletingLastPathComponent().path)
-            }
-        }
+        .padding(10)
+        .background(Color(NSColor.controlBackgroundColor))
     }
-    
-    private func loadThumbnail() {
-        DispatchQueue.global(qos: .userInitiated).async {
-            guard let image = NSImage(contentsOf: fileURL) else { return }
-            
-            let thumbnailSize = NSSize(width: 200, height: 150)
-            let thumbnail = resizeImage(image, to: thumbnailSize)
-            
-            DispatchQueue.main.async {
-                self.thumbnail = thumbnail
-            }
-        }
-    }
-    
-    private func resizeImage(_ image: NSImage, to targetSize: NSSize) -> NSImage {
-        let newImage = NSImage(size: targetSize)
-        newImage.lockFocus()
-        defer { newImage.unlockFocus() }
-        
-        let sourceRatio = image.size.width / image.size.height
-        let targetRatio = targetSize.width / targetSize.height
-        
-        var drawRect: NSRect
-        
-        if sourceRatio > targetRatio {
-            let newWidth = targetSize.height * sourceRatio
-            drawRect = NSRect(
-                x: (targetSize.width - newWidth) / 2,
-                y: 0,
-                width: newWidth,
-                height: targetSize.height
-            )
-        } else {
-            let newHeight = targetSize.width / sourceRatio
-            drawRect = NSRect(
-                x: 0,
-                y: (targetSize.height - newHeight) / 2,
-                width: targetSize.width,
-                height: newHeight
-            )
-        }
-        
-        image.draw(in: drawRect, from: NSRect(origin: .zero, size: image.size), operation: .sourceOver, fraction: 1.0)
-        return newImage
-    }
-    
-    private func formatFileDate() -> String {
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
-            if let creationDate = attributes[.creationDate] as? Date {
-                let formatter = RelativeDateTimeFormatter()
-                formatter.unitsStyle = .abbreviated
-                return formatter.localizedString(for: creationDate, relativeTo: Date())
-            }
-        } catch {
-            print("Error getting file attributes: \(error)")
-        }
-        return ""
-    }
-    
-    private func deleteFile() {
-        do {
-            try FileManager.default.removeItem(at: fileURL)
-            print("[DEL] Deleted file: \(fileURL.path)")
-            onDeleted()
-        } catch {
-            print("[ERR] Failed to delete file: \(error)")
-        }
+
+    /// Resolves the file creation date off the main thread.
+    private func resolveFileDate(_ url: URL) async -> String {
+        await Task.detached(priority: .background) {
+            guard let vals = try? url.resourceValues(forKeys: [.creationDateKey]),
+                  let date = vals.creationDate else { return "" }
+            let fmt = DateFormatter()
+            fmt.dateStyle = .short
+            fmt.timeStyle = .short
+            return fmt.string(from: date)
+        }.value
     }
 }
 
-// Subtle checkerboard background to indicate canvas
-struct CheckerboardBackground: View {
+// MARK: - Capture Countdown Overlay
+
+struct CaptureCountdownOverlay: View {
+    let countdown: Int
+    let onCancel: () -> Void
+
     var body: some View {
-        GeometryReader { proxy in
-            let size: CGFloat = 20
-            let columns = Int(ceil(proxy.size.width / size))
-            let rows = Int(ceil(proxy.size.height / size))
+        ZStack {
+            Color.black.opacity(0.55).ignoresSafeArea()
 
-            ZStack(alignment: .topLeading) {
-                Color(NSColor.windowBackgroundColor)
-                ForEach(0..<(rows * columns), id: \.self) { index in
-                    let row = index / columns
-                    let col = index % columns
-                    if (row + col) % 2 == 0 {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.08))
-                            .frame(width: size, height: size)
-                            .position(x: CGFloat(col) * size + size / 2, y: CGFloat(row) * size + size / 2)
-                    }
+            VStack(spacing: 28) {
+                Text("\(countdown)")
+                    .font(.system(size: 140, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .contentTransition(.numericText(countsDown: true))
+                    .animation(.easeInOut(duration: 0.4), value: countdown)
+                    .shadow(color: .black.opacity(0.4), radius: 20)
+
+                Text("Capture starts in \(countdown) second\(countdown == 1 ? "" : "s")…")
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.85))
+
+                Button(action: onCancel) {
+                    Label("Cancel", systemImage: "xmark.circle.fill")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(20)
                 }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape, modifiers: [])
             }
         }
     }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }

@@ -2,8 +2,6 @@
 //  ScreenGrabberUITestsLaunchTests.swift
 //  ScreenGrabberUITests
 //
-//  Created by Victor Lam on 10/23/25.
-//
 
 import XCTest
 
@@ -22,8 +20,7 @@ final class ScreenGrabberUITestsLaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
+        _ = app.wait(for: .runningForeground, timeout: 5)
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"
