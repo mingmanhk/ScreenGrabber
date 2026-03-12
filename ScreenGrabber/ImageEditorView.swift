@@ -694,14 +694,14 @@ struct ExportDialog: View {
                     if let data = imageData {
                         do {
                             try data.write(to: url)
-                            print("✅ Image exported successfully to: \(url.path)")
+                            CaptureLogger.log(.save, "Exported to \(url.lastPathComponent)", level: .success)
                             
                             // Show success notification
                             DispatchQueue.main.async {
                                 self.dismiss()
                             }
                         } catch {
-                            print("❌ Failed to export image: \(error.localizedDescription)")
+                            CaptureLogger.log(.save, "Export failed: \(error.localizedDescription)", level: .error)
                         }
                     }
                 }

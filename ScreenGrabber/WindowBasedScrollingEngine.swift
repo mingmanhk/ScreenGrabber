@@ -438,10 +438,31 @@ class WindowBasedScrollingEngine: ObservableObject {
         )
     }
     
+    // MARK: - Capture-Only API (for ScreenCaptureManager integration)
+
+    /// Captures all scroll segments, stitches them, and returns the final NSImage.
+    /// Does NOT save — the caller (ScreenCaptureManager) is responsible for saving.
+    func captureAndStitch(window: SelectableWindow) async throws -> NSImage {
+        self.selectedWindow = window
+        capturedSegments.removeAll()
+
+        await transitionToState(.capturingSegments(
+            progress: .init(currentSegment: 0, totalSegments: nil, status: "Initializing...")
+        ))
+
+        try await focusWindow(window)
+        try await captureAllSegments(window: window)
+
+        await transitionToState(.stitching)
+        let stitched = try await stitchSegments()
+        await transitionToState(.idle)
+        return stitched
+    }
+
     // MARK: - Notifications
-    
+
     /// Fetches available on-screen windows via ScreenCaptureKit
-    private func fetchAvailableWindows() async -> [SelectableWindow] {
+    func fetchAvailableWindows() async -> [SelectableWindow] {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             return content.windows.compactMap { scWindow -> SelectableWindow? in

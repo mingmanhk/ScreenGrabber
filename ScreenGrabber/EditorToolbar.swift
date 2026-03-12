@@ -10,6 +10,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 import PDFKit
 import ImageIO
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 /// Top toolbar with zoom, export, and view controls
 struct EditorToolbar: View {
@@ -22,7 +24,12 @@ struct EditorToolbar: View {
     let onPropertiesToggle: () -> Void
     let onRecentToggle: () -> Void
     let onAdjustmentsToggle: () -> Void
-    
+    let onRotateCW: () -> Void
+    let onRotateCCW: () -> Void
+    let onFlipH: () -> Void
+    let onFlipV: () -> Void
+    let onResize: () -> Void
+
     var body: some View {
         HStack(spacing: 16) {
             // Left: File Actions
@@ -75,8 +82,49 @@ struct EditorToolbar: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Print (⌘P)")
+
+                Divider()
+                    .frame(height: 20)
+
+                Button(action: onRotateCCW) {
+                    Image(systemName: "rotate.left")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.borderless)
+                .help("Rotate 90° counter-clockwise")
+
+                Button(action: onRotateCW) {
+                    Image(systemName: "rotate.right")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.borderless)
+                .help("Rotate 90° clockwise")
+
+                Button(action: onFlipH) {
+                    Image(systemName: "arrow.left.and.right")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.borderless)
+                .help("Flip horizontal")
+
+                Button(action: onFlipV) {
+                    Image(systemName: "arrow.up.and.down")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.borderless)
+                .help("Flip vertical")
+
+                Divider()
+                    .frame(height: 20)
+
+                Button(action: onResize) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.borderless)
+                .help("Resize image")
             }
-            
+
             Spacer()
             
             // Center: Zoom Controls
@@ -361,7 +409,8 @@ struct ExportSheet: View {
         let ext = exportFormat.rawValue.lowercased()
         let destURL = destDir.appendingPathComponent(baseName).appendingPathExtension(ext)
 
-        writeImage(source, to: destURL)
+        let flat = flattenedImage(source, annotations: editorState.imageEditorState.annotations)
+        writeImage(flat, to: destURL)
     }
 
     private func runSavePanel(for image: NSImage) {
@@ -370,7 +419,7 @@ struct ExportSheet: View {
         panel.nameFieldStringValue = imageURL.deletingPathExtension().lastPathComponent + "_exported"
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
-            self.writeImage(image, to: url)
+            self.writeImage(self.flattenedImage(image, annotations: self.editorState.imageEditorState.annotations), to: url)
         }
     }
 
@@ -459,6 +508,61 @@ struct ExportSheet: View {
             CaptureLogger.log(.save, "Export write failed: \(error.localizedDescription)", level: .error)
         }
     }
+
+    // MARK: - Annotation Flattening
+
+    private func flattenedImage(_ source: NSImage, annotations: [DrawingAnnotation]) -> NSImage {
+        let sz = source.size
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil,
+            pixelsWide: Int(sz.width), pixelsHigh: Int(sz.height),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+            isPlanar: false, colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0) else { return source }
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else { return source }
+        NSGraphicsContext.current = ctx
+        source.draw(in: CGRect(origin: .zero, size: sz))
+        for ann in annotations where ann.isCompleted {
+            switch ann.tool {
+            case .blur:     applyBlur(ann, source: source, size: sz)
+            case .pixelate: applyPixelate(ann, source: source, size: sz)
+            default: break
+            }
+        }
+        let out = NSImage(size: sz)
+        out.addRepresentation(rep)
+        return out
+    }
+
+    private func applyBlur(_ ann: DrawingAnnotation, source: NSImage, size: CGSize) {
+        guard let cg = source.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        let r = ann.rect
+        let flip = CGRect(x: r.minX, y: size.height - r.maxY, width: r.width, height: r.height)
+        guard let crop = cg.cropping(to: flip) else { return }
+        let ci = CIImage(cgImage: crop)
+        let f = CIFilter.gaussianBlur()
+        f.inputImage = ci
+        f.radius = Float(max(ann.blurRadius, 20))
+        guard let out = f.outputImage,
+              let result = CIContext().createCGImage(out, from: ci.extent) else { return }
+        NSImage(cgImage: result, size: r.size).draw(in: r)
+    }
+
+    private func applyPixelate(_ ann: DrawingAnnotation, source: NSImage, size: CGSize) {
+        guard let cg = source.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        let r = ann.rect
+        let flip = CGRect(x: r.minX, y: size.height - r.maxY, width: r.width, height: r.height)
+        guard let crop = cg.cropping(to: flip) else { return }
+        let ci = CIImage(cgImage: crop)
+        let f = CIFilter.pixellate()
+        f.inputImage = ci
+        f.scale = Float(max(ann.blurRadius, 16))
+        f.center = CGPoint(x: ci.extent.width / 2, y: ci.extent.height / 2)
+        guard let out = f.outputImage,
+              let result = CIContext().createCGImage(out, from: ci.extent) else { return }
+        NSImage(cgImage: result, size: r.size).draw(in: r)
+    }
 }
 
 // MARK: - Rename Sheet
@@ -525,22 +629,133 @@ struct RenameSheet: View {
         let fileExtension = imageURL.pathExtension
         let newFilename = "\(newName).\(fileExtension)"
         let newURL = imageURL.deletingLastPathComponent().appendingPathComponent(newFilename)
-        
+
         do {
             try FileManager.default.moveItem(at: imageURL, to: newURL)
-            print("[RENAME] Renamed to: \(newFilename)")
-            
+            CaptureLogger.log(.save, "Renamed to: \(newFilename)", level: .success)
+
             ScreenCaptureManager.shared.showNotification(
                 title: "Renamed",
                 message: "File renamed to \(newFilename)"
             )
         } catch {
-            print("[RENAME] Failed: \(error)")
-            
+            CaptureLogger.log(.save, "Rename failed: \(error.localizedDescription)", level: .error)
+
             ScreenCaptureManager.shared.showNotification(
                 title: "Error",
                 message: "Could not rename file"
             )
         }
+    }
+}
+
+// MARK: - Resize Image Sheet
+
+struct ResizeImageSheet: View {
+    @Binding var originalImage: NSImage?
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var targetWidth: String = ""
+    @State private var targetHeight: String = ""
+    @State private var maintainAspectRatio = true
+
+    private var currentAspectRatio: CGFloat {
+        guard let img = originalImage, img.size.height > 0 else { return 1 }
+        return img.size.width / img.size.height
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Resize Image")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            if let img = originalImage {
+                Text("Current: \(Int(img.size.width)) × \(Int(img.size.height)) px")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Width (px)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextField("Width", text: $targetWidth)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 90)
+                        .onChange(of: targetWidth) { _, newW in
+                            guard maintainAspectRatio, let w = Int(newW), w > 0 else { return }
+                            targetHeight = "\(max(1, Int(Double(w) / Double(currentAspectRatio))))"
+                        }
+                }
+
+                Button(action: { maintainAspectRatio.toggle() }) {
+                    Image(systemName: maintainAspectRatio ? "lock" : "lock.open")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .help(maintainAspectRatio ? "Aspect ratio locked" : "Aspect ratio unlocked")
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Height (px)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextField("Height", text: $targetHeight)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 90)
+                        .disabled(maintainAspectRatio)
+                        .onChange(of: targetHeight) { _, newH in
+                            guard maintainAspectRatio, let h = Int(newH), h > 0 else { return }
+                            targetWidth = "\(max(1, Int(Double(h) * Double(currentAspectRatio))))"
+                        }
+                }
+            }
+
+            Toggle("Maintain aspect ratio", isOn: $maintainAspectRatio)
+                .toggleStyle(.checkbox)
+
+            Divider()
+
+            HStack(spacing: 12) {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+
+                Button("Resize") {
+                    applyResize()
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+                .disabled(Int(targetWidth) == nil || Int(targetHeight) == nil)
+            }
+        }
+        .padding(24)
+        .frame(width: 340)
+        .onAppear {
+            if let img = originalImage {
+                targetWidth = "\(Int(img.size.width))"
+                targetHeight = "\(Int(img.size.height))"
+            }
+        }
+    }
+
+    private func applyResize() {
+        guard let image = originalImage,
+              let cgIn = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let w = Int(targetWidth), w > 0,
+              let h = Int(targetHeight), h > 0 else { return }
+
+        guard let ctx = CGContext(
+            data: nil, width: w, height: h,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return }
+
+        ctx.interpolationQuality = .high
+        ctx.draw(cgIn, in: CGRect(x: 0, y: 0, width: CGFloat(w), height: CGFloat(h)))
+        guard let cgOut = ctx.makeImage() else { return }
+        originalImage = NSImage(cgImage: cgOut, size: NSSize(width: CGFloat(w), height: CGFloat(h)))
     }
 }

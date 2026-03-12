@@ -97,6 +97,8 @@ struct ScreenGrabberApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        DotEnvLoader.load()
+        SubscriptionManager.shared.start()
         setupGlobalHotkey()
 
         NotificationCenter.default.addObserver(

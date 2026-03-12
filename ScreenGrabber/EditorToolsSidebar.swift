@@ -83,7 +83,19 @@ struct EditorToolsSidebar: View {
                 
                 // Utility Tools Section
                 ToolGroup(title: "Utility", tools: utilityTools, editorState: editorState)
-                
+
+                Divider().padding(.vertical, 4)
+
+                // Active tool description status bar
+                Text(editorState.selectedTool.toolDescription)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 8)
+
                 Spacer()
             }
             .padding(.vertical, 8)
@@ -112,7 +124,7 @@ struct ToolGroup: View {
                     tool: tool,
                     isSelected: editorState.selectedTool == tool,
                     action: {
-                        editorState.selectedTool = tool
+                        editorState.selectTool(tool)
                     }
                 )
             }
@@ -151,7 +163,7 @@ struct ToolButton: View {
             }
         }
         .buttonStyle(.plain)
-        .help(tool.displayName)
+        .help(tool.toolDescription)
         .onHover { hovering in
             isHovering = hovering
         }

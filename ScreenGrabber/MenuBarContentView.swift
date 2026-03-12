@@ -18,8 +18,6 @@ struct MenuBarContentView: View {
     @State private var currentHotkey = "⌘⇧C"
     @State private var recentScreenshots: [URL] = []
     @State private var hoveredCaptureURL: URL?
-    @State private var showImageEditor = false
-    @State private var imageURLToEdit: URL?
     @State private var reloadTask: Task<Void, Never>?
 
     @State private var settingsManager = SettingsManager.shared
@@ -30,13 +28,20 @@ struct MenuBarContentView: View {
             Divider()
             captureOptionsSection
             Divider()
+            quickSettingsSection
+            Divider()
             recentCapturesSection
             Spacer(minLength: 0)
             footerSection
         }
         .frame(width: 360)
         .background(Color(NSColor.windowBackgroundColor))
-        .onAppear(perform: loadSettings)
+        .onAppear {
+            if settingsManager.selectedScreenOption == .fullScreen {
+                settingsManager.selectedScreenOption = .selectedArea
+            }
+            loadSettings()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .screenshotCaptured)) { _ in
             scheduleReload()
         }
@@ -48,11 +53,6 @@ struct MenuBarContentView: View {
         }
         .sheet(isPresented: $showHotkeySheet) {
             HotkeyConfigView(currentHotkey: $currentHotkey, onSave: setupGlobalHotkey)
-        }
-        .sheet(isPresented: $showImageEditor) {
-            if let url = imageURLToEdit {
-                ImageEditorContainer(imageURL: url)
-            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .requestSettingsOpen)) { _ in
             openWindow(id: "settings")
@@ -125,7 +125,7 @@ struct MenuBarContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             sectionLabel("Capture Method", icon: "square.on.square.dashed", color: .accentColor)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                ForEach(ScreenOption.allCases) { option in
+                ForEach(ScreenOption.allCases.filter { $0 != .fullScreen }) { option in
                     OptionButton(
                         icon: option.icon,
                         label: option.displayName,
@@ -226,7 +226,7 @@ struct MenuBarContentView: View {
                             fileURL: url,
                             isHovered: hoveredCaptureURL == url,
                             onHover: { hoveredCaptureURL = $0 ? url : nil },
-                            onEdit: { imageURLToEdit = url; showImageEditor = true }
+                            onEdit: { EditorWindowOpener.open(fileURL: url) }
                         )
                     }
                 }
@@ -251,8 +251,8 @@ struct MenuBarContentView: View {
                     NSApp.activate(ignoringOtherApps: true)
                 }
                 MenuActionButton(icon: "gearshape", label: "Settings", color: .gray) {
-                    openWindow(id: "settings")
                     NSApp.activate(ignoringOtherApps: true)
+                    NotificationCenter.default.post(name: .requestSettingsOpen, object: nil)
                 }
                 MenuActionButton(icon: "power", label: "Quit", color: .red) {
                     NSApplication.shared.terminate(nil)
@@ -337,6 +337,8 @@ extension MenuBarContentView {
         let onEdit: () -> Void
 
         @State private var fileDate: String = ""
+        @State private var showDeleteAlert = false
+        @State private var pendingDeleteURL: URL? = nil
 
         var body: some View {
             HStack(spacing: 12) {
@@ -382,6 +384,14 @@ extension MenuBarContentView {
                         }
                         .buttonStyle(.plain)
                         .help("Preview")
+
+                        Button(action: { requestDelete(fileURL) }) {
+                            Image(systemName: "trash.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Move to Trash")
                     }
                     .transition(.scale.combined(with: .opacity))
                 }
@@ -392,7 +402,7 @@ extension MenuBarContentView {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(isHovered
                           ? Color.accentColor.opacity(0.08)
-                          : Color(NSColor.controlBackgroundColor).opacity(0.5))
+                          : Color(NSColor.controlBackgroundColor))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -403,6 +413,20 @@ extension MenuBarContentView {
             )
             .onHover { hovering in withAnimation(.easeInOut(duration: 0.2)) { onHover(hovering) } }
             .task(id: fileURL) { fileDate = await resolveRelativeDate(fileURL) }
+            .alert("Move to Trash", isPresented: $showDeleteAlert) {
+                Button("Move to Trash", role: .destructive) {
+                    UserDefaults.standard.set(true, forKey: "hasShownDeleteWarning")
+                    if let url = pendingDeleteURL {
+                        ThumbnailCache.shared.invalidate(url: url)
+                        try? FileManager.default.trashItem(at: url, resultingItemURL: nil)
+                        NotificationCenter.default.post(name: .screenshotCaptured, object: nil)
+                    }
+                    pendingDeleteURL = nil
+                }
+                Button("Cancel", role: .cancel) { pendingDeleteURL = nil }
+            } message: {
+                Text("Deleting a capture will move the file to Trash. This can be undone from the Trash.")
+            }
             .contextMenu {
                 Button("Open") { NSWorkspace.shared.open(fileURL) }
                 Button("Edit in Image Editor") { onEdit() }
@@ -420,10 +444,21 @@ extension MenuBarContentView {
                     }
                 }
                 Divider()
-                Button("Delete", role: .destructive) {
-                    ThumbnailCache.shared.invalidate(url: fileURL)
-                    try? FileManager.default.trashItem(at: fileURL, resultingItemURL: nil)
+                Button("Move to Trash", role: .destructive) {
+                    requestDelete(fileURL)
                 }
+            }
+        }
+
+        private func requestDelete(_ url: URL) {
+            let hasShown = UserDefaults.standard.bool(forKey: "hasShownDeleteWarning")
+            if hasShown {
+                ThumbnailCache.shared.invalidate(url: url)
+                try? FileManager.default.trashItem(at: url, resultingItemURL: nil)
+                NotificationCenter.default.post(name: .screenshotCaptured, object: nil)
+            } else {
+                pendingDeleteURL = url
+                showDeleteAlert = true
             }
         }
 
@@ -487,6 +522,78 @@ extension MenuBarContentView {
             .padding(24)
             .frame(width: 350)
         }
+    }
+}
+
+// MARK: - Quick Settings
+
+extension MenuBarContentView {
+    private var quickSettingsSection: some View {
+        VStack(spacing: 10) {
+            sectionLabel("Quick Settings", icon: "gearshape.fill", color: .secondary)
+            HStack(spacing: 0) {
+                QuickToggle(icon: "speaker.wave.2", label: "Sound",
+                            isOn: bindSetting(\.captureSound))
+                QuickToggle(icon: "doc.on.clipboard", label: "Copy",
+                            isOn: bindSetting(\.copyToClipboardEnabled))
+                QuickToggle(icon: "doc.text.magnifyingglass", label: "OCR",
+                            isOn: bindSetting(\.ocrEnabled))
+            }
+            .padding(.horizontal, 16)
+            HStack(spacing: 8) {
+                Image(systemName: "photo").font(.caption).foregroundColor(.secondary)
+                Picker("", selection: Binding(
+                    get: { SettingsModel.shared.captureFormat },
+                    set: { SettingsModel.shared.captureFormat = $0 }
+                )) {
+                    ForEach(ImageFormat.allCases, id: \.self) { fmt in
+                        Text(fmt.displayName).tag(fmt)
+                    }
+                }
+                .labelsHidden().pickerStyle(.menu).frame(width: 90)
+                Spacer()
+                Button {
+                    NSWorkspace.shared.open(SettingsModel.shared.effectiveSaveURL)
+                } label: {
+                    Label(SettingsModel.shared.effectiveSaveURL.lastPathComponent,
+                          systemImage: "folder")
+                        .font(.caption).lineLimit(1)
+                }
+                .buttonStyle(.plain).foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func bindSetting<T>(_ kp: ReferenceWritableKeyPath<SettingsModel, T>) -> Binding<T> {
+        Binding(
+            get: { SettingsModel.shared[keyPath: kp] },
+            set: { SettingsModel.shared[keyPath: kp] = $0 }
+        )
+    }
+}
+
+// MARK: - Quick Toggle
+
+private struct QuickToggle: View {
+    let icon: String
+    let label: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Button { isOn.toggle() } label: {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: isOn ? .semibold : .regular))
+                    .foregroundColor(isOn ? .accentColor : .secondary)
+                    .frame(width: 32, height: 32)
+                    .background(RoundedRectangle(cornerRadius: 8)
+                        .fill(isOn ? Color.accentColor.opacity(0.12) : Color.clear))
+                Text(label).font(.system(size: 10))
+                    .foregroundColor(isOn ? .primary : .secondary)
+            }.frame(maxWidth: .infinity)
+        }.buttonStyle(.plain)
     }
 }
 

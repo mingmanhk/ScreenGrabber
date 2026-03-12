@@ -246,7 +246,7 @@ struct CaptureLogger {
     }
     
     /// End the logging session
-    nonisolated static func endSession() {
+    @MainActor static func endSession() {
         // Access the start time safely using the lock
         sessionStartTimeLock.lock()
         let startTime = _sessionStartTime

@@ -9,6 +9,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import CoreImage
 
 extension ScreenCaptureManager {
     /// Retrieves OCR text for the given image URL from extended attributes
@@ -102,7 +103,8 @@ struct ScreenCaptureEditor: View {
     @State private var showingPropertiesPanel = true
     @State private var showingRecentCaptures = true
     @State private var showingAdjustments = false
-    
+    @State private var showingResizeSheet = false
+
     // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
@@ -115,7 +117,12 @@ struct ScreenCaptureEditor: View {
                 onOCRToggle: { showingOCRPanel.toggle() },
                 onPropertiesToggle: { showingPropertiesPanel.toggle() },
                 onRecentToggle: { showingRecentCaptures.toggle() },
-                onAdjustmentsToggle: { showingAdjustments.toggle() }
+                onAdjustmentsToggle: { showingAdjustments.toggle() },
+                onRotateCW: rotateImageCW,
+                onRotateCCW: rotateImageCCW,
+                onFlipH: flipImageHorizontal,
+                onFlipV: flipImageVertical,
+                onResize: { showingResizeSheet = true }
             )
             .background(Color(nsColor: .windowBackgroundColor))
             
@@ -199,6 +206,9 @@ struct ScreenCaptureEditor: View {
         }
         .sheet(isPresented: $showingRenameSheet) {
             RenameSheet(imageURL: imageURL)
+        }
+        .sheet(isPresented: $showingResizeSheet) {
+            ResizeImageSheet(originalImage: $originalImage)
         }
         // Keyboard shortcuts
         .onDeleteCommand {
@@ -293,6 +303,50 @@ struct ScreenCaptureEditor: View {
         op.showsPrintPanel = true
         op.showsProgressPanel = true
         op.run()
+    }
+
+    // MARK: - Image Transforms
+
+    private func rotateImageCW() {
+        guard let image = originalImage,
+              let cgIn = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        applyTransform(CGAffineTransform(rotationAngle: -.pi / 2), to: image, cgIn: cgIn)
+    }
+
+    private func rotateImageCCW() {
+        guard let image = originalImage,
+              let cgIn = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        applyTransform(CGAffineTransform(rotationAngle: .pi / 2), to: image, cgIn: cgIn)
+    }
+
+    private func flipImageHorizontal() {
+        guard let image = originalImage,
+              let cgIn = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        let t = CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: CGFloat(cgIn.width), ty: 0)
+        applyTransform(t, to: image, cgIn: cgIn)
+    }
+
+    private func flipImageVertical() {
+        guard let image = originalImage,
+              let cgIn = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        let t = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: CGFloat(cgIn.height))
+        applyTransform(t, to: image, cgIn: cgIn)
+    }
+
+    private func applyTransform(_ transform: CGAffineTransform, to image: NSImage, cgIn: CGImage) {
+        var ci = CIImage(cgImage: cgIn).transformed(by: transform)
+        let origin = ci.extent.origin
+        if origin.x != 0 || origin.y != 0 {
+            ci = ci.transformed(by: CGAffineTransform(translationX: -origin.x, y: -origin.y))
+        }
+        let extent = ci.extent
+        let ciCtx = CIContext()
+        guard let cgOut = ciCtx.createCGImage(ci, from: extent) else { return }
+        let scale = cgIn.width > 0 ? image.size.width / CGFloat(cgIn.width) : 1
+        originalImage = NSImage(
+            cgImage: cgOut,
+            size: NSSize(width: extent.width * scale, height: extent.height * scale)
+        )
     }
 
     private func renderImageWithAnnotations(_ baseImage: NSImage) -> NSImage {

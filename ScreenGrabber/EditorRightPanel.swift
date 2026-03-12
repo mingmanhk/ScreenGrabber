@@ -546,9 +546,9 @@ struct OCRTextSection: View {
             if response == .OK, let url = savePanel.url {
                 do {
                     try editorState.ocrText.write(to: url, atomically: true, encoding: .utf8)
-                    print("[OCR] Exported text to: \(url.path)")
+                    CaptureLogger.log(.debug, "OCR text exported to \(url.lastPathComponent)", level: .success)
                 } catch {
-                    print("[OCR] Failed to export: \(error)")
+                    CaptureLogger.log(.debug, "OCR export failed: \(error.localizedDescription)", level: .error)
                 }
             }
         }

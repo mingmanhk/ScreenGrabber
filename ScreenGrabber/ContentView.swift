@@ -13,7 +13,6 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var recentScreenshots: [URL] = []
-    @State private var editorURL: IdentifiableURL?
     @StateObject private var settingsManager = SettingsManager.shared
     @ObservedObject private var settingsModel = SettingsModel.shared
 
@@ -21,6 +20,10 @@ struct ContentView: View {
     @State private var showingCountdown = false
     @State private var countdownValue = 0
     @State private var countdownTask: Task<Void, Never>?
+
+    // Capture flash feedback
+    @State private var showCaptureFlash = false
+    @State private var flashTask: Task<Void, Never>?
 
     // Debounce reloads to prevent notification storms
     @State private var reloadTask: Task<Void, Never>?
@@ -43,15 +46,15 @@ struct ContentView: View {
                     libraryPanel
                 }
 
-                Divider()
-
-                BottomCapturesStrip(
-                    recentScreenshots: recentScreenshots,
-                    onEdit: { openEditor(for: $0) },
-                    onRefresh: loadRecentScreenshots
-                )
             }
             .frame(minWidth: 1000, minHeight: 600)
+
+            if showCaptureFlash {
+                Color.white
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
 
             if showingCountdown {
                 CaptureCountdownOverlay(countdown: countdownValue, onCancel: cancelCountdown)
@@ -59,16 +62,14 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.2), value: showingCountdown)
             }
         }
-        .sheet(item: $editorURL) { item in
-            ScreenCaptureEditorView(fileURL: item.url)
-                .frame(minWidth: 900, minHeight: 600)
-        }
         .onAppear {
             setupMonitor()
             loadRecentScreenshots()
         }
+        .aiPaywall()
         .onReceive(NotificationCenter.default.publisher(for: .screenshotCaptured)) { _ in
             scheduleReload()
+            triggerCaptureFlash()
         }
         .onReceive(NotificationCenter.default.publisher(for: ScreenshotMonitor.screenshotsChangedNotification)) { _ in
             scheduleReload()
@@ -87,7 +88,7 @@ struct ContentView: View {
             } else {
                 ScrollView {
                     LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 180, maximum: 220), spacing: 20)],
+                        columns: [GridItem(.adaptive(minimum: 200, maximum: 260), spacing: 20)],
                         spacing: 20
                     ) {
                         ForEach(recentScreenshots, id: \.self) { url in
@@ -104,7 +105,7 @@ struct ContentView: View {
     // MARK: - Actions
 
     private func openEditor(for url: URL) {
-        editorURL = IdentifiableURL(url)
+        EditorWindowOpener.open(fileURL: url)
     }
 
     private func captureScreen() {
@@ -143,6 +144,16 @@ struct ContentView: View {
         countdownTask?.cancel()
         countdownTask = nil
         withAnimation { showingCountdown = false }
+    }
+
+    private func triggerCaptureFlash() {
+        flashTask?.cancel()
+        flashTask = Task { @MainActor in
+            withAnimation(.easeIn(duration: 0.05)) { showCaptureFlash = true }
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.35)) { showCaptureFlash = false }
+        }
     }
 
     /// Debounces rapid successive reload requests (e.g. two notifications fired by a single capture).
@@ -258,19 +269,25 @@ struct ScreenshotCard: View {
 
     private var thumbnailArea: some View {
         ZStack {
-            Color.black.opacity(0.05)
-
-            AsyncThumbnail(url: fileURL, maxPixelSize: 440, contentMode: .fit)
-                .padding(8)
+            AsyncThumbnail(url: fileURL, maxPixelSize: 440, contentMode: .fill)
 
             if isHovering {
-                Color.black.opacity(0.3)
-                Button("Edit") { onOpen() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.regular)
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.5)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                VStack {
+                    Spacer()
+                    Button("Edit") { onOpen() }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .tint(.white)
+                        .padding(.bottom, 10)
+                }
             }
         }
-        .frame(height: 130)
+        .frame(height: 170)
         .clipped()
     }
 
@@ -289,7 +306,7 @@ struct ScreenshotCard: View {
             Spacer()
         }
         .padding(10)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color(NSColor.windowBackgroundColor))
     }
 
     /// Resolves the file creation date off the main thread.

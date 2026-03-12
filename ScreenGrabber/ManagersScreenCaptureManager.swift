@@ -288,8 +288,8 @@ class ScreenCaptureManager: ObservableObject {
             throw ScreenGrabberTypes.CaptureError.noWindowAvailable
         }
         
-        // Present window selection sheet
-        let selectedWindow = await presentWindowSelectionSheet(windows: windows)
+        // Present Snagit-style hover overlay
+        let selectedWindow = await presentWindowHoverSelector(windows: windows)
         
         guard let window = selectedWindow else {
             throw ScreenGrabberTypes.CaptureError.userCancelled
@@ -306,25 +306,14 @@ class ScreenCaptureManager: ObservableObject {
         )
     }
 
-    private func presentWindowSelectionSheet(windows: [SelectableWindow]) async -> SelectableWindow? {
-        await MainActor.run {
-            let alert = NSAlert()
-            alert.messageText = "Select a Window to Capture"
-            alert.informativeText = "Choose a window from the list below."
-            alert.addButton(withTitle: "Capture")
-            alert.addButton(withTitle: "Cancel")
-            
-            let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-            popup.addItems(withTitles: windows.map { $0.displayTitle })
-            
-            alert.accessoryView = popup
-            
-            let response = alert.runModal()
-            
-            if response == .alertFirstButtonReturn {
-                return windows[popup.indexOfSelectedItem]
-            } else {
-                return nil
+    /// Presents a transparent full-screen overlay; user hovers to highlight a window, clicks to select.
+    private func presentWindowHoverSelector(windows: [SelectableWindow]) async -> SelectableWindow? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async {
+                let selector = WindowHoverSelectorWindow(availableWindows: windows)
+                selector.onWindowSelected = { continuation.resume(returning: $0) }
+                selector.onCancelled     = { continuation.resume(returning: nil) }
+                selector.makeKeyAndOrderFront(nil)
             }
         }
     }
@@ -398,21 +387,26 @@ class ScreenCaptureManager: ObservableObject {
     
     private func captureScrolling() async throws -> CaptureResult {
         CaptureLogger.log(.scrolling, "Starting scrolling capture", level: .info)
-        
-        // Use the new window selection method to get the window
+
+        // Present window hover selector for the user to pick a window
         guard let window = try await selectWindow() else {
             throw ScreenGrabberTypes.CaptureError.userCancelled
         }
-        
-        // Use WindowBasedScrollingEngine
+
+        CaptureLogger.log(.scrolling, "Window selected: \(window.displayTitle)", level: .info)
+
+        // Use WindowBasedScrollingEngine — capture-only path (no internal save)
         let engine = WindowBasedScrollingEngine()
-        
-        // Start the capture through the engine
-        await engine.startScrollingCapture(window: window, modelContext: nil)
-        
-        // For now, we need to wait and get the result
-        // This is a simplified approach - the engine handles the full workflow
-        throw ScreenGrabberTypes.CaptureError.captureKitError("Scrolling capture requires refactoring to work with the new flow")
+        let stitched = try await engine.captureAndStitch(window: window)
+
+        CaptureLogger.log(.scrolling, "Scrolling capture complete: \(Int(stitched.size.width))×\(Int(stitched.size.height))", level: .success)
+
+        return CaptureResult(
+            image: stitched,
+            size: stitched.size,
+            method: .scrollingCapture,
+            sourceInfo: window.displayTitle
+        )
     }
 
     func selectWindow() async throws -> SelectableWindow? {
@@ -441,8 +435,7 @@ class ScreenCaptureManager: ObservableObject {
             throw ScreenGrabberTypes.CaptureError.noWindowAvailable
         }
         
-        // Present window selection sheet
-        return await presentWindowSelectionSheet(windows: windows)
+        return await presentWindowHoverSelector(windows: windows)
     }
     
     // MARK: - ScreenCaptureKit Integration

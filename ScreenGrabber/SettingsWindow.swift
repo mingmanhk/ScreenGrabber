@@ -13,7 +13,7 @@ struct SettingsWindow: View {
     @ObservedObject private var settings = SettingsModel.shared
 
     enum Section: String, CaseIterable, Identifiable {
-        case general, capture, ocr, editor, videoAudio, about
+        case general, capture, ocr, aiPro, editor, videoAudio, about
         var id: String { rawValue }
 
         var title: String {
@@ -21,6 +21,7 @@ struct SettingsWindow: View {
             case .general:   return "General"
             case .capture:   return "Capture"
             case .ocr:       return "OCR"
+            case .aiPro:     return "AI Pro"
             case .editor:    return "Editor"
             case .videoAudio: return "Video & Audio"
             case .about:     return "About"
@@ -32,6 +33,7 @@ struct SettingsWindow: View {
             case .general:   return "gearshape"
             case .capture:   return "camera.viewfinder"
             case .ocr:       return "doc.text.viewfinder"
+            case .aiPro:     return "sparkles"
             case .editor:    return "pencil.tip.crop.circle"
             case .videoAudio: return "video"
             case .about:     return "info.circle"
@@ -52,6 +54,7 @@ struct SettingsWindow: View {
                 case .general:   GeneralSettingsPane()
                 case .capture:   CaptureSettingsPane()
                 case .ocr:       OCRSettingsPane()
+                case .aiPro:     AIProSettingsPane()
                 case .editor:    EditorSettingsPane()
                 case .videoAudio: VideoAudioSettingsPane()
                 case .about:     AboutPane()
@@ -474,6 +477,149 @@ private struct AboutPane: View {
             .padding(32)
         }
         .navigationTitle("About")
+    }
+}
+
+// MARK: - AI Pro
+
+private struct AIProSettingsPane: View {
+    @ObservedObject private var entitlement = AIEntitlementManager.shared
+    @ObservedObject private var subscription = SubscriptionManager.shared
+    @ObservedObject private var keyManager = APIKeyManager.shared
+
+    @State private var showPaywall = false
+    @State private var showBYOK = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+
+                // Status card
+                SettingsPaneSection(icon: "sparkles", title: "AI Pro Status", subtitle: "Your current AI entitlement") {
+                    HStack(spacing: 14) {
+                        AIEntitlementBadge()
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(statusTitle).fontWeight(.semibold)
+                            Text(statusSubtitle).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if !entitlement.isEntitled {
+                            Button("Upgrade") { showPaywall = true }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                        }
+                    }
+                    .padding(.vertical, 4)
+
+                    if subscription.isSubscribed, let expires = subscription.expiresDate {
+                        HStack(spacing: 6) {
+                            Image(systemName: "calendar").font(.caption).foregroundStyle(.secondary)
+                            Text("Renews \(expires, style: .date)").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                // Subscription management
+                SettingsPaneSection(icon: "creditcard", title: "Subscription", subtitle: "Manage your AI Pro subscription") {
+                    if subscription.isSubscribed {
+                        Button("Manage Subscription in App Store") {
+                            NSWorkspace.shared.open(URL(string: "itms-apps://apps.apple.com/account/subscriptions")!)
+                        }
+                        .buttonStyle(.bordered)
+                        Button("Restore Purchases") {
+                            Task { await subscription.restorePurchases() }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    } else {
+                        HStack {
+                            Text("No active subscription").foregroundStyle(.secondary)
+                            Spacer()
+                            Button("View Plans") { showPaywall = true }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                        }
+                        Button("Restore Purchases") {
+                            Task { await subscription.restorePurchases() }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+
+                // BYOK key management
+                SettingsPaneSection(icon: "key.fill", title: "API Keys (BYOK)", subtitle: "Use your own AI provider keys as an alternative") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(AIProvider.allCases) { provider in
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(provider.displayName).font(.system(size: 12, weight: .medium))
+                                    let state = keyManager.validationStates[provider] ?? .unknown
+                                    Text(state.statusText)
+                                        .font(.caption)
+                                        .foregroundStyle(state.isValid ? Color.green : Color.secondary)
+                                }
+                                Spacer()
+                                if keyManager.hasKey(for: provider) {
+                                    Image(systemName: "key.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                            .padding(8)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Color(NSColor.windowBackgroundColor)))
+                        }
+
+                        Button("Manage API Keys…") { showBYOK = true }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                }
+
+                // AI features quick reference
+                SettingsPaneSection(icon: "info.circle", title: "AI Features", subtitle: "Features included in AI Pro or with BYOK keys") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(AIFeature.allCases, id: \.rawValue) { feature in
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(entitlement.isEntitled ? Color.green : Color.secondary)
+                                Text(feature.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
+                                    .font(.system(size: 12))
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(24)
+        }
+        .navigationTitle("AI Pro")
+        .sheet(isPresented: $showPaywall) { PaywallView() }
+        .sheet(isPresented: $showBYOK) { BYOKSetupView() }
+    }
+
+    private var statusTitle: String {
+        switch entitlement.checkEntitlement() {
+        case .allowed(let source):
+            switch source {
+            case .subscription:     return "AI Pro — Active"
+            case .byok(let p):      return "BYOK — \(p.displayName)"
+            }
+        case .denied: return "No AI Access"
+        }
+    }
+
+    private var statusSubtitle: String {
+        switch entitlement.checkEntitlement() {
+        case .allowed(let source):
+            switch source {
+            case .subscription: return "All AI features unlocked via subscription"
+            case .byok:         return "Using your own API key"
+            }
+        case .denied: return "Subscribe to AI Pro or add a BYOK key to enable AI features"
+        }
     }
 }
 

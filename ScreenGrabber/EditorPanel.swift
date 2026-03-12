@@ -8,6 +8,8 @@
 import SwiftUI
 import AppKit
 
+@available(*, deprecated, renamed: "EditorRightPanel",
+    message: "Use EditorRightPanel(editorState:imageURL:showingProperties:showingOCR:) instead.")
 struct EditorPanel: View {
     var selectedImageURL: URL?
     
@@ -453,9 +455,5 @@ enum AnnotationShape: String, CaseIterable, Identifiable {
         case .freeform: return "scribble"
         }
     }
-}
-
-#Preview {
-    EditorPanel()
 }
 

@@ -126,13 +126,37 @@ struct ImageCanvas: View {
     
     private func handleDragEnded(_ value: DragGesture.Value) {
         let location = value.location
-        
+
         guard isDragging else { return }
         isDragging = false
-        
+
+        // Small drag (< 5 pt) = treat as tap for point-placement tools
+        let dragDist = distance(value.startLocation, location)
+        if dragDist < 5 {
+            switch editorState.selectedTool {
+            case .text, .callout:
+                textEditorPosition = location
+                editorState.currentText = editorState.selectedTool == .callout ? "Callout text" : "Enter text"
+                showingTextEditor = true
+                tempAnnotation = nil
+                currentPath = nil
+                return
+            case .stamp:
+                addStampAnnotation(at: location)
+                tempAnnotation = nil
+                currentPath = nil
+                return
+            case .step:
+                addStepAnnotation(at: location)
+                tempAnnotation = nil
+                currentPath = nil
+                return
+            default:
+                break
+            }
+        }
+
         finishDrawing(at: location)
-        
-        // Reset drawing state
         tempAnnotation = nil
         currentPath = nil
     }
@@ -178,13 +202,13 @@ struct ImageCanvas: View {
         case .line, .arrow:
             annotation.points = [point, point] // Start and end will be the same initially
             
-        case .shape, .blur, .pixelate, .spotlight, .callout, .crop:
+        case .shape, .blur, .pixelate, .spotlight, .callout, .crop, .magnify:
             annotation.rect = CGRect(origin: point, size: .zero)
-            
+
         default:
             break
         }
-        
+
         tempAnnotation = annotation
     }
     
@@ -233,7 +257,7 @@ struct ImageCanvas: View {
                 annotation.points[1] = point
             }
             
-        case .shape, .blur, .pixelate, .spotlight, .callout, .crop:
+        case .shape, .blur, .pixelate, .spotlight, .callout, .crop, .magnify:
             let rect = CGRect(
                 x: min(dragStart.x, point.x),
                 y: min(dragStart.y, point.y),
@@ -274,7 +298,7 @@ struct ImageCanvas: View {
             return annotation.points.count >= 2 && 
                    distance(annotation.points[0], annotation.points[1]) > 5
             
-        case .shape, .blur, .pixelate, .spotlight, .callout, .crop:
+        case .shape, .blur, .pixelate, .spotlight, .callout, .crop, .magnify:
             return annotation.rect.width > 5 && annotation.rect.height > 5
             
         case .text:
@@ -293,7 +317,7 @@ struct ImageCanvas: View {
         // Find the topmost annotation that contains this point
         return editorState.annotations.reversed().first { annotation in
             switch annotation.tool {
-            case .shape, .blur, .pixelate, .spotlight, .callout, .text, .crop:
+            case .shape, .blur, .pixelate, .spotlight, .callout, .text, .crop, .magnify:
                 return annotation.rect.contains(point)
                 
             case .line, .arrow:
@@ -441,16 +465,36 @@ struct AnnotationOverlay: View {
         context.opacity = annotation.opacity
         
         switch annotation.tool {
-        case .pen, .freehand, .highlighter, .eraser:
+        case .pen, .freehand:
             if let path = annotation.path {
-                let swiftUIPath = Path(path)
                 context.stroke(
-                    swiftUIPath,
+                    Path(path),
                     with: .color(Color(annotation.color)),
                     lineWidth: annotation.lineWidth
                 )
             }
-            
+
+        case .highlighter:
+            if let path = annotation.path {
+                context.opacity = 0.4
+                context.stroke(
+                    Path(path),
+                    with: .color(Color(annotation.color)),
+                    lineWidth: max(annotation.lineWidth, 20)
+                )
+            }
+
+        case .eraser:
+            if let path = annotation.path {
+                context.blendMode = .clear
+                context.opacity = 1.0
+                context.stroke(
+                    Path(path),
+                    with: .color(.white),
+                    lineWidth: annotation.lineWidth
+                )
+            }
+
         case .line:
             if annotation.points.count >= 2 {
                 let path = Path { p in
@@ -490,10 +534,13 @@ struct AnnotationOverlay: View {
             
         case .stamp:
             drawStamp(context: context, annotation: annotation)
-            
+
+        case .magnify:
+            drawMagnify(context: context, annotation: annotation)
+
         case .crop:
             drawCrop(context: context, annotation: annotation)
-            
+
         default:
             break
         }
@@ -565,16 +612,22 @@ struct AnnotationOverlay: View {
     private func drawShape(context: GraphicsContext, annotation: DrawingAnnotation) {
         let rect = annotation.rect
         let path: Path
-        
+
         switch annotation.shapeType {
-        case .rectangle, .roundedRectangle:
-            path = Path(roundedRect: rect, cornerRadius: annotation.shapeType == .roundedRectangle ? 8 : 0)
+        case .rectangle:
+            path = Path(rect)
+        case .roundedRectangle:
+            path = Path(roundedRect: rect, cornerRadius: 8)
         case .ellipse:
             path = Path(ellipseIn: rect)
-        default:
-            path = Path(rect)
+        case .triangle:
+            path = createTrianglePath(in: rect)
+        case .star:
+            path = createStarPath(in: rect)
+        case .polygon:
+            path = createPolygonPath(in: rect, sides: 6)
         }
-        
+
         if annotation.isFilled {
             context.fill(path, with: .color(Color(annotation.color)))
         } else {
@@ -592,8 +645,10 @@ struct AnnotationOverlay: View {
     
     private func drawBlur(context: GraphicsContext, annotation: DrawingAnnotation) {
         let rect = annotation.rect
-        context.fill(Path(rect), with: .color(.white.opacity(0.6)))
-        context.stroke(Path(rect), with: .color(Color(annotation.color)), lineWidth: 1)
+        // Solid gray overlay that actually covers content; blurRadius adjusts density
+        let intensity = min(0.6 + annotation.blurRadius / 30.0, 0.92)
+        context.fill(Path(rect), with: .color(Color.gray.opacity(intensity)))
+        context.stroke(Path(rect), with: .color(Color.gray.opacity(0.7)), lineWidth: 1.5)
     }
 
     private func drawPixelate(context: GraphicsContext, annotation: DrawingAnnotation) {
@@ -699,6 +754,50 @@ struct AnnotationOverlay: View {
         context.stroke(starPath, with: .color(Color(annotation.color)), lineWidth: 1)
     }
     
+    private func drawMagnify(context: GraphicsContext, annotation: DrawingAnnotation) {
+        let rect = annotation.rect
+        let color = Color(annotation.color)
+        // Draw the lens circle
+        context.stroke(Path(ellipseIn: rect), with: .color(color), lineWidth: annotation.lineWidth + 1)
+        // Draw the handle from bottom-right of ellipse outward
+        let handleStart = CGPoint(x: rect.maxX - rect.width * 0.12, y: rect.maxY - rect.height * 0.12)
+        let handleEnd   = CGPoint(x: rect.maxX + rect.width * 0.18, y: rect.maxY + rect.height * 0.18)
+        let handle = Path { p in
+            p.move(to: handleStart)
+            p.addLine(to: handleEnd)
+        }
+        context.stroke(handle, with: .color(color), lineWidth: annotation.lineWidth + 2)
+        // Draw "+" crosshair inside the circle
+        let cx = rect.midX, cy = rect.midY, arm = min(rect.width, rect.height) * 0.18
+        let crosshair = Path { p in
+            p.move(to: CGPoint(x: cx - arm, y: cy)); p.addLine(to: CGPoint(x: cx + arm, y: cy))
+            p.move(to: CGPoint(x: cx, y: cy - arm)); p.addLine(to: CGPoint(x: cx, y: cy + arm))
+        }
+        context.stroke(crosshair, with: .color(color.opacity(0.6)), lineWidth: 1.5)
+    }
+
+    private func createTrianglePath(in rect: CGRect) -> Path {
+        Path { p in
+            p.move(to: CGPoint(x: rect.midX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            p.closeSubpath()
+        }
+    }
+
+    private func createPolygonPath(in rect: CGRect, sides: Int) -> Path {
+        Path { p in
+            let center = CGPoint(x: rect.midX, y: rect.midY)
+            let radius = min(rect.width, rect.height) / 2
+            for i in 0..<sides {
+                let angle = CGFloat(i) * 2 * .pi / CGFloat(sides) - .pi / 2
+                let pt = CGPoint(x: center.x + radius * cos(angle), y: center.y + radius * sin(angle))
+                if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+            }
+            p.closeSubpath()
+        }
+    }
+
     private func createStarPath(in rect: CGRect) -> Path {
         Path { path in
             let center = CGPoint(x: rect.midX, y: rect.midY)
@@ -786,20 +885,56 @@ struct CurrentDrawingOverlay: View {
                 }
                 context.stroke(arrowPath, with: .color(Color(annotation.color)), lineWidth: annotation.lineWidth)
                 
-            case .shape, .blur, .pixelate, .spotlight, .callout, .crop:
+            case .shape, .blur, .pixelate, .spotlight, .callout, .crop, .magnify:
                 let rect = CGRect(
                     x: min(dragStart.x, dragCurrent.x),
                     y: min(dragStart.y, dragCurrent.y),
                     width: abs(dragCurrent.x - dragStart.x),
                     height: abs(dragCurrent.y - dragStart.y)
                 )
-                
+
                 let path: Path
-                switch annotation.shapeType {
-                case .ellipse:
+                if editorState.selectedTool == .magnify {
                     path = Path(ellipseIn: rect)
-                default:
-                    path = Path(rect)
+                } else {
+                    switch annotation.shapeType {
+                    case .ellipse:
+                        path = Path(ellipseIn: rect)
+                    case .triangle:
+                        path = Path { p in
+                            p.move(to: CGPoint(x: rect.midX, y: rect.minY))
+                            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+                            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+                            p.closeSubpath()
+                        }
+                    case .star:
+                        let center = CGPoint(x: rect.midX, y: rect.midY)
+                        let radius = min(rect.width, rect.height) / 2
+                        let innerRadius = radius * 0.5
+                        path = Path { p in
+                            for i in 0..<10 {
+                                let angle = CGFloat(i) * .pi / 5
+                                let r = i % 2 == 0 ? radius : innerRadius
+                                let pt = CGPoint(x: center.x + r * cos(angle - .pi / 2),
+                                                 y: center.y + r * sin(angle - .pi / 2))
+                                if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+                            }
+                            p.closeSubpath()
+                        }
+                    case .polygon:
+                        let center = CGPoint(x: rect.midX, y: rect.midY)
+                        let radius = min(rect.width, rect.height) / 2
+                        path = Path { p in
+                            for i in 0..<6 {
+                                let angle = CGFloat(i) * 2 * .pi / 6 - .pi / 2
+                                let pt = CGPoint(x: center.x + radius * cos(angle), y: center.y + radius * sin(angle))
+                                if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+                            }
+                            p.closeSubpath()
+                        }
+                    default:
+                        path = Path(rect)
+                    }
                 }
                 
                 // Special styling for pixelate tool
@@ -848,6 +983,13 @@ struct CurrentDrawingOverlay: View {
                         p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + 2 * thirdHeight))
                     }
                     context.stroke(guidelines, with: .color(.white.opacity(0.5)), lineWidth: 1)
+                } else if editorState.selectedTool == .magnify {
+                    context.stroke(path, with: .color(Color(annotation.color)), lineWidth: annotation.lineWidth + 1)
+                    // preview handle
+                    let hs = CGPoint(x: rect.maxX - rect.width * 0.12, y: rect.maxY - rect.height * 0.12)
+                    let he = CGPoint(x: rect.maxX + rect.width * 0.18, y: rect.maxY + rect.height * 0.18)
+                    let handle = Path { p in p.move(to: hs); p.addLine(to: he) }
+                    context.stroke(handle, with: .color(Color(annotation.color)), lineWidth: annotation.lineWidth + 2)
                 } else if annotation.isFilled {
                     context.fill(path, with: .color(Color(annotation.color).opacity(0.3)))
                     context.stroke(path, with: .color(Color(annotation.color)), lineWidth: annotation.lineWidth)

@@ -173,14 +173,18 @@ struct ThumbnailView: View {
                 showingPreview = false
             }
         }
-        .onAppear {
-            loadThumbnail()
+        .task(id: imageURL) {
+            if let cached = ThumbnailCache.shared.thumbnail(for: imageURL) {
+                thumbnail = cached
+            } else {
+                thumbnail = await ThumbnailCache.shared.load(url: imageURL, maxPixelSize: 240)
+            }
         }
         .contextMenu {
             ThumbnailContextMenu(imageURL: imageURL)
         }
     }
-    
+
     private var borderColor: Color {
         if isSelected {
             return .accentColor
@@ -188,29 +192,6 @@ struct ThumbnailView: View {
             return .primary.opacity(0.3)
         } else {
             return .primary.opacity(0.1)
-        }
-    }
-    
-    private func loadThumbnail() {
-        DispatchQueue.global(qos: .userInitiated).async {
-            if let image = NSImage(contentsOf: imageURL) {
-                // Create thumbnail
-                let thumbnailSize = NSSize(width: 240, height: 160)
-                let thumbnail = NSImage(size: thumbnailSize)
-                
-                thumbnail.lockFocus()
-                image.draw(
-                    in: NSRect(origin: .zero, size: thumbnailSize),
-                    from: .zero,
-                    operation: .copy,
-                    fraction: 1.0
-                )
-                thumbnail.unlockFocus()
-                
-                DispatchQueue.main.async {
-                    self.thumbnail = thumbnail
-                }
-            }
         }
     }
 }
@@ -268,16 +249,16 @@ struct ThumbnailContextMenu: View {
     
     private func moveToTrash() {
         do {
+            ThumbnailCache.shared.invalidate(url: imageURL)
             try FileManager.default.trashItem(at: imageURL, resultingItemURL: nil)
-            print("[TRASH] Moved to trash: \(imageURL.lastPathComponent)")
-            
+            CaptureLogger.log(.capture, "Moved to trash: \(imageURL.lastPathComponent)", level: .success)
+            NotificationCenter.default.post(name: .screenshotCaptured, object: nil)
             ScreenCaptureManager.shared.showNotification(
                 title: "Moved to Trash",
                 message: imageURL.lastPathComponent
             )
         } catch {
-            print("[TRASH] Failed: \(error)")
-            
+            CaptureLogger.log(.error, "Failed to trash item: \(error.localizedDescription)", level: .error)
             ScreenCaptureManager.shared.showNotification(
                 title: "Error",
                 message: "Could not move file to trash"

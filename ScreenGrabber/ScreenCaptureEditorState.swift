@@ -113,6 +113,7 @@ class ScreenCaptureEditorState: ObservableObject {
     // Undo/Redo support
     private var undoStack: [[Annotation]] = []
     private var redoStack: [[Annotation]] = []
+    private var cancellables = Set<AnyCancellable>()
     
     var canUndo: Bool {
         !undoStack.isEmpty
@@ -123,8 +124,14 @@ class ScreenCaptureEditorState: ObservableObject {
     }
     
     init() {
-        // Sync tool selection with imageEditorState
         imageEditorState.selectedTool = selectedTool
+        // Auto-sync: any write to selectedTool propagates to imageEditorState
+        $selectedTool
+            .dropFirst()
+            .sink { [weak self] tool in
+                self?.imageEditorState.selectedTool = tool
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Tool Selection

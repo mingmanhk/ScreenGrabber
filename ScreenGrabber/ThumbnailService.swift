@@ -48,27 +48,30 @@ actor ThumbnailService {
     
     private func resizeImage(_ image: NSImage, targetSize: CGFloat) -> NSImage {
         let originalSize = image.size
+        guard originalSize.width > 0, originalSize.height > 0 else { return image }
         let aspectRatio = originalSize.width / originalSize.height
-        
-        var newSize: CGSize
-        if aspectRatio > 1 {
-            // Landscape
-            newSize = CGSize(width: targetSize, height: targetSize / aspectRatio)
-        } else {
-            // Portrait or square
-            newSize = CGSize(width: targetSize * aspectRatio, height: targetSize)
-        }
-        
-        let resizedImage = NSImage(size: newSize)
-        resizedImage.lockFocus()
-        image.draw(
-            in: NSRect(origin: .zero, size: newSize),
-            from: NSRect(origin: .zero, size: originalSize),
-            operation: .sourceOver,
-            fraction: 1.0
-        )
-        resizedImage.unlockFocus()
-        
-        return resizedImage
+
+        let newSize: CGSize = aspectRatio > 1
+            ? CGSize(width: targetSize, height: (targetSize / aspectRatio).rounded())
+            : CGSize(width: (targetSize * aspectRatio).rounded(), height: targetSize)
+
+        let w = Int(newSize.width)
+        let h = Int(newSize.height)
+        guard w > 0, h > 0 else { return image }
+
+        // Use CGContext — thread-safe, no lockFocus required
+        guard let cgSource = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let ctx = CGContext(
+                data: nil, width: w, height: h,
+                bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else { return image }
+
+        ctx.interpolationQuality = .high
+        ctx.draw(cgSource, in: CGRect(x: 0, y: 0, width: w, height: h))
+
+        guard let cgOut = ctx.makeImage() else { return image }
+        return NSImage(cgImage: cgOut, size: newSize)
     }
 }

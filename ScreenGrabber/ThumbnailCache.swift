@@ -52,37 +52,27 @@ final class ThumbnailCache {
             return cached
         }
 
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                guard let self else {
-                    continuation.resume(returning: nil)
-                    return
-                }
+        // Decode the CGImage on a background priority task (CPU-bound, no UI work)
+        let cgImage = await Task.detached(priority: .userInitiated) { () -> CGImage? in
+            let options: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+                kCGImageSourceShouldCacheImmediately: true
+            ]
+            guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+            return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        }.value
 
-                let options: [CFString: Any] = [
-                    kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
-                    kCGImageSourceCreateThumbnailWithTransform: true,
-                    kCGImageSourceShouldCacheImmediately: false
-                ]
+        guard let cgImage else { return nil }
 
-                guard
-                    let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-                    let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
-                else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let image = NSImage(cgImage: cgImage, size: .zero)
-                let cost = cgImage.width * cgImage.height * 4
-
-                DispatchQueue.main.async {
-                    self.cache.setObject(image, forKey: url as NSURL, cost: cost)
-                }
-                continuation.resume(returning: image)
-            }
+        // NSImage and NSCache are not thread-safe — create and store on the main actor
+        let image = await MainActor.run { [weak self] () -> NSImage in
+            let img = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+            let cost = cgImage.width * cgImage.height * 4
+            self?.cache.setObject(img, forKey: url as NSURL, cost: cost)
+            return img
         }
+        return image
     }
 }
 
@@ -100,15 +90,22 @@ struct AsyncThumbnail: View {
 
     var body: some View {
         ZStack {
+            Color(NSColor.controlBackgroundColor)
+
             if let image {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
                     .transition(.opacity.animation(.easeIn(duration: 0.15)))
             } else if failed {
-                Image(systemName: "photo")
-                    .font(.system(size: 24))
-                    .foregroundStyle(.tertiary)
+                VStack(spacing: 6) {
+                    Image(systemName: "photo")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.tertiary)
+                    Text("No preview")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
             } else {
                 ProgressView()
                     .controlSize(.small)
