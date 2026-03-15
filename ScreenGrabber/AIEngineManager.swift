@@ -12,28 +12,13 @@
 //  This is expected and the warnings are suppressed with @preconcurrency.
 //
 
-// MARK: - Sendable Warning Suppression
-// Vision types (VNImageRequestHandler, VNGenerateForegroundInstanceMaskRequest) 
-// are not Sendable in macOS 15/16. This is a framework limitation, not a bug.
-#warning("Vision framework types are not Sendable - this is expected and handled with @preconcurrency")
-
-//
-//  AIEngineManager.swift
-//  ScreenGrabber
-//
-//  Protocol-based AI abstraction layer. Routes every AI request through
-//  entitlement check → provider selection → HTTP call → parsed response.
-//
-//  Subscription backend: placeholder endpoint (configure SERVER_AI_ENDPOINT in env).
-//  BYOK: directly calls the provider's public API with the user's key.
-//
-
 // MARK: - Vision Framework (non-Sendable types expected)
-#warning("Vision framework types are not Sendable - this is expected")
+// Vision types (VNImageRequestHandler, VNGenerateForegroundInstanceMaskRequest)
+// are not Sendable in macOS 15/16. This is a framework limitation, not a bug.
+
 @preconcurrency import Foundation
 @preconcurrency import AppKit
-import Vision
-import CoreImage
+@preconcurrency import Vision
 
 // MARK: - Errors
 
@@ -483,12 +468,13 @@ final class AIEngineManager {
         
         // Try VNGenerateForegroundInstanceMaskRequest (macOS 14+)
         if #available(macOS 14.0, *) {
-            let request = VNGenerateForegroundInstanceMaskRequest()
-            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
             
             return try await withCheckedThrowingContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {
-                    do {
+                    let request = VNGenerateForegroundInstanceMaskRequest()
+                    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+
+        do {
                         try handler.perform([request])
                         guard let maskResult = request.results?.first else {
                             continuation.resume(throwing: AIError.parseError("No foreground mask generated"))
