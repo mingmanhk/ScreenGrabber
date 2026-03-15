@@ -474,7 +474,7 @@ final class AIEngineManager {
                     let request = VNGenerateForegroundInstanceMaskRequest()
                     let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
 
-        do {
+                    do {
                         try handler.perform([request])
                         guard let maskResult = request.results?.first else {
                             continuation.resume(throwing: AIError.parseError("No foreground mask generated"))
