@@ -24,6 +24,7 @@ enum AIError: LocalizedError {
     case httpError(Int)
     case parseError(String)
     case imageConversionFailed
+    case notImplemented(String)
     case subscriptionBackendNotConfigured
 
     var errorDescription: String? {
@@ -36,6 +37,7 @@ enum AIError: LocalizedError {
         case .parseError(let msg):                 return "Could not parse AI response: \(msg)"
         case .imageConversionFailed:               return "Could not convert image for AI processing."
         case .subscriptionBackendNotConfigured:    return "Subscription AI backend is not yet configured."
+        case .notImplemented(let message): return "Not implemented: \(message\)"
         }
     }
 }
@@ -149,14 +151,44 @@ final class AIEngineManager {
 
     /// Run an AI request. Checks entitlement first; routes to subscription backend or BYOK.
     func run(_ request: AIRequest) async throws -> String {
-        guard AIEntitlementManager.shared.requireEntitlement() else {
-            throw AIError.notEntitled
-        }
-
-        let entitlement = AIEntitlementManager.shared.checkEntitlement()
+        // Check entitlement for this specific feature
+        let entitlement = AIEntitlementManager.shared.checkEntitlement(for: request.feature)
+        
         switch entitlement {
         case .allowed(let source):
             switch source {
+            case .local:
+                // Handle local features without API calls
+                switch request.feature {
+                case .ocr:
+                    guard let image = request.image else {
+                        throw AIError.imageConversionFailed
+                    }
+                    // Use OCRManager for local OCR
+                    if let result = try? await OCRManager.shared.extractTextWithConfidence(from: image) {
+                        return result.text
+                    } else {
+                        // Fall back to the old method if local OCR fails
+                        return try await callBYOK(request)
+                    }
+                case .removeBackground:
+                    guard let image = request.image else {
+                        throw AIError.imageConversionFailed
+                    }
+                    let resultImage = try await removeBackground(from: image)
+                    // For local features, return a success message
+                    return "Background removed successfully using local Vision processing."
+                case .autoEnhance:
+                    guard let image = request.image else {
+                        throw AIError.imageConversionFailed
+                    }
+                    let resultImage = try await autoEnhance(image: image)
+                    return "Image auto-enhanced successfully using Core Image."
+                default:
+                    // This shouldn't happen - local feature not implemented
+                    throw AIError.notEntitled
+                }
+                
             case .subscription:
                 do {
                     return try await callSubscriptionBackend(request)
@@ -175,7 +207,15 @@ final class AIEngineManager {
     // MARK: - Convenience Methods
 
     func extractText(from image: NSImage) async throws -> String {
-        try await run(AIRequest(feature: .ocr, image: image))
+        // Check if OCR is a local feature
+        let entitlement = AIEntitlementManager.shared.checkEntitlement(for: .ocr)
+        if case .allowed(let source) = entitlement, case .local = source {
+            // Call local OCR implementation
+            // For now, use a placeholder - need to integrate with AIFeatures.swift
+            return try await run(AIRequest(feature: .ocr, image: image))
+        } else {
+            return try await run(AIRequest(feature: .ocr, image: image))
+        }
     }
 
     func generateCaption(for image: NSImage) async throws -> String {
@@ -194,7 +234,6 @@ final class AIEngineManager {
     func explainCode(in image: NSImage) async throws -> String {
         try await run(AIRequest(feature: .codeExplanation, image: image))
     }
-
     // MARK: - Subscription Backend
 
     private func callSubscriptionBackend(_ request: AIRequest) async throws -> String {

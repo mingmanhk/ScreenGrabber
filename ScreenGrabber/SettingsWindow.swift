@@ -503,7 +503,7 @@ private struct AIProSettingsPane: View {
                             Text(statusSubtitle).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if !entitlement.isEntitled {
+                        if !entitlement.entitlementResult.isAllowed {
                             Button("Upgrade") { showPaywall = true }
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.small)
@@ -585,7 +585,7 @@ private struct AIProSettingsPane: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.caption)
-                                    .foregroundStyle(entitlement.isEntitled ? Color.green : Color.secondary)
+                                    .foregroundStyle(entitlement.entitlementResult.isAllowed ? Color.green : Color.secondary)
                                 Text(feature.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
                                     .font(.system(size: 12))
                             }
@@ -606,6 +606,7 @@ private struct AIProSettingsPane: View {
             switch source {
             case .subscription:     return "AI Pro — Active"
             case .byok(let p):      return "BYOK — \(p.displayName)"
+            case .local:            return "Local AI Features"
             }
         case .denied: return "No AI Access"
         }
@@ -617,6 +618,7 @@ private struct AIProSettingsPane: View {
             switch source {
             case .subscription: return "All AI features unlocked via subscription"
             case .byok:         return "Using your own API key"
+            case .local:       return "Basic features using device processing"
             }
         case .denied: return "Subscribe to AI Pro or add a BYOK key to enable AI features"
         }

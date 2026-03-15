@@ -1,0 +1,114 @@
+//
+//  ScrollSelectionOverlay.swift
+//  ScreenGrabber
+//
+//  Visual overlay that follows the mouse to highlight scrollable areas
+//  and presents directional arrows for capture initiation.
+//
+
+import SwiftUI
+
+struct ScrollSelectionOverlay: View {
+    @StateObject private var manager = ScrollCaptureManager.shared
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        ZStack {
+            // Dim background
+            Color.black.opacity(0.1)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    // Click outside cancels
+                    manager.stopDetection()
+                    dismiss()
+                }
+            
+            // Highlight Box
+            if let rect = manager.highlightedRect {
+                // The outline
+                Rectangle()
+                    .strokeBorder(Color.orange, lineWidth: 4)
+                    .frame(width: rect.width, height: rect.height)
+                    .position(x: rect.midX, y: UIScreenHeight - rect.midY) // Adjust for SwiftUI coord system if needed, usually OverlayWindow handles this mapping
+                    .overlay(
+                        // Direction Arrows
+                        ZStack {
+                            if manager.availableDirections.contains(.vertical) {
+                                ScrollArrowButton(icon: "arrow.down") {
+                                    manager.startCapture(direction: .vertical)
+                                }
+                                .position(x: rect.midX, y: (UIScreenHeight - rect.midY) + rect.height/2 + 30)
+                            }
+                            
+                            if manager.availableDirections.contains(.horizontal) {
+                                ScrollArrowButton(icon: "arrow.right") {
+                                    manager.startCapture(direction: .horizontal)
+                                }
+                                .position(x: rect.midX + rect.width/2 + 30, y: UIScreenHeight - rect.midY)
+                            }
+                        }
+                    )
+            }
+            
+            // Instructions / Status
+            VStack {
+                switch manager.currentState {
+                case .detecting:
+                    Text("Hover over a scrollable area")
+                        .font(.headline)
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(8)
+                        .padding(.top, 50)
+                    Spacer()
+                case .capturing(let progress):
+                    VStack {
+                        ProgressView(value: progress)
+                        Text("Scrolling & Capturing...")
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(8)
+                case .stitching:
+                    Text("Stitching...")
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(8)
+                default:
+                    EmptyView()
+                }
+            }
+        }
+        .onAppear {
+            manager.startDetection()
+        }
+    }
+    
+    // Helper to get screen height for coordinate flipping if necessary
+    var UIScreenHeight: CGFloat {
+        NSScreen.main?.frame.height ?? 1080
+    }
+}
+struct ScrollArrowButton: View {
+    let icon: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 50, height: 50)
+                .background(Color.orange)
+                .clipShape(Circle())
+                .shadow(radius: 4)
+                .overlay(
+                    Circle()
+                        .stroke(Color.white, lineWidth: 2)
+                )
+        }
+        .buttonStyle(.plain)
+        .transition(.scale)
+    }
+}
+
