@@ -37,7 +37,7 @@ enum AIError: LocalizedError {
         case .parseError(let msg):                 return "Could not parse AI response: \(msg)"
         case .imageConversionFailed:               return "Could not convert image for AI processing."
         case .subscriptionBackendNotConfigured:    return "Subscription AI backend is not yet configured."
-        case .notImplemented(let message): return "Not implemented: \(message\)"
+        case .notImplemented(let message): return "Not implemented: \(message)"
         }
     }
 }
