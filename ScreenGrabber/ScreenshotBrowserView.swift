@@ -13,9 +13,13 @@ struct ScreenshotBrowserView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Screenshot.captureDate, order: .reverse) private var screenshots: [Screenshot]
     @State private var selectedScreenshot: Screenshot?
+    @State private var selectedScreenshots: Set<Screenshot> = []
     @State private var searchText = ""
     @State private var filterType: CaptureType?
     @State private var filterTag: String?
+    @State private var showDeleteConfirmation = false
+    @State private var isMultiSelectMode = false
+    @State private var showFirstTimeDeleteWarning = !UserDefaults.standard.bool(forKey: "hasSeenLibraryDeleteWarning")
 
     private let columns = [
         GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 16)
@@ -48,134 +52,246 @@ struct ScreenshotBrowserView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Search and filter bar
+            // Toolbar
             HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
+                TextField("Search", text: $searchText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .frame(width: 200)
 
-                TextField("Search screenshots...", text: $searchText)
-                    .textFieldStyle(.plain)
-
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
+                Picker("Type", selection: $filterType) {
+                    Text("All").tag(nil as CaptureType?)
+                    ForEach(CaptureType.allCases, id: \.self) { type in
+                        Text(type.displayName).tag(type as CaptureType?)
                     }
-                    .buttonStyle(.plain)
                 }
+                .frame(width: 120)
 
-                Divider()
-                    .frame(height: 20)
-
-                Menu {
-                    Button("All Types") {
-                        filterType = nil
+                Picker("Tag", selection: $filterTag) {
+                    Text("All").tag(nil as String?)
+                    ForEach(allTags, id: \.self) { tag in
+                        Text(tag).tag(tag as String?)
                     }
-                    Divider()
-                    ForEach(CaptureType.allCases) { type in
-                        Button(type.displayName) {
-                            filterType = type
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(filterType?.displayName ?? "All Types")
-                        Image(systemName: "chevron.down")
-                    }
-                    .font(.caption)
                 }
-                .menuStyle(.borderlessButton)
+                .frame(width: 120)
+
+                Spacer()
+
+                // Multi-select toggle
+                Button(action: {
+                    isMultiSelectMode.toggle()
+                    if !isMultiSelectMode {
+                        selectedScreenshots.removeAll()
+                    }
+                }) {
+                    Label(
+                        isMultiSelectMode ? "Done Selecting" : "Select Multiple",
+                        systemImage: isMultiSelectMode ? "checkmark.circle.fill" : "checkmark.circle"
+                    )
+                }
+                .help(isMultiSelectMode ? "Finish selection" : "Select multiple screenshots")
+
+                // Delete button (enabled when items selected)
+                Button(action: {
+                    if showFirstTimeDeleteWarning {
+                        showFirstTimeDeleteWarning = false
+                        UserDefaults.standard.set(true, forKey: "hasSeenLibraryDeleteWarning")
+                    }
+                    showDeleteConfirmation = true
+                }) {
+                    Label("Delete", systemImage: "trash")
+                }
+                .disabled(selectedScreenshots.isEmpty)
+                .help(selectedScreenshots.isEmpty ? "Select items to delete" : "Delete \(selectedScreenshots.count) selected item(s)")
             }
-            .padding(12)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding()
 
-            // Tag filter chips
-            if !allTags.isEmpty {
-                Divider()
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(allTags, id: \.self) { tag in
-                            TagFilterChip(tag: tag, isSelected: filterTag == tag) {
-                                filterTag = filterTag == tag ? nil : tag
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                }
-                .background(Color(NSColor.controlBackgroundColor))
-            }
-
-            Divider()
-
-            // Screenshot grid
+            // Grid - Using existing ScreenshotThumbnailView with custom wrapper
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(filteredScreenshots) { screenshot in
-                        ScreenshotThumbnailView(screenshot: screenshot)
-                            .onTapGesture {
-                                selectedScreenshot = screenshot
-                            }
-                            .contextMenu {
-                                screenshotContextMenu(for: screenshot)
-                            }
+                        BrowserThumbnailView(
+                            screenshot: screenshot,
+                            isSelected: isMultiSelectMode ? selectedScreenshots.contains(screenshot) : false,
+                            onSelect: { handleThumbnailSelect(screenshot) },
+                            onDoubleClick: { openScreenshot(screenshot) }
+                        )
+                        .contextMenu {
+                            ScreenshotContextMenu(screenshot: screenshot, modelContext: modelContext)
+                        }
                     }
                 }
-                .padding(16)
+                .padding()
             }
 
-            if filteredScreenshots.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.secondary)
-
-                    Text("No Screenshots")
-                        .font(.title3)
-                        .fontWeight(.medium)
-
-                    Text(searchText.isEmpty && filterTag == nil
-                         ? "Capture your first screenshot to get started"
-                         : "No results found")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            // Status bar
+            HStack {
+                Text("\(filteredScreenshots.count) screenshots")
+                if isMultiSelectMode && !selectedScreenshots.isEmpty {
+                    Text("• \(selectedScreenshots.count) selected")
+                        .foregroundColor(.accentColor)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Spacer()
+                if let selected = selectedScreenshot, !isMultiSelectMode {
+                    Text("\(selected.width)×\(selected.height) • \(selected.captureType)")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color(NSColor.controlBackgroundColor))
+        }
+        .alert("Move to Trash?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Move to Trash", role: .destructive) {
+                deleteSelectedScreenshots()
+            }
+        } message: {
+            if showFirstTimeDeleteWarning {
+                Text("Screenshots will be moved to the Trash, not permanently deleted. You can restore them from the Trash later.")
+            } else {
+                Text("Move \(selectedScreenshots.count) screenshot(s) to Trash?")
             }
         }
-        .sheet(item: $selectedScreenshot) { screenshot in
-            ScreenshotDetailView(screenshot: screenshot)
+        .navigationTitle("Library")
+    }
+
+    private func handleThumbnailSelect(_ screenshot: Screenshot) {
+        if isMultiSelectMode {
+            if selectedScreenshots.contains(screenshot) {
+                selectedScreenshots.remove(screenshot)
+            } else {
+                selectedScreenshots.insert(screenshot)
+            }
+        } else {
+            selectedScreenshot = screenshot
+            selectedScreenshots = [screenshot]
         }
     }
 
-    @ViewBuilder
-    private func screenshotContextMenu(for screenshot: Screenshot) -> some View {
-        Button("Open in Editor") {
-            EditorWindowHelper.shared.openEditor(for: screenshot)
-        }
+    private func openScreenshot(_ screenshot: Screenshot) {
+        let fileURL = URL(fileURLWithPath: screenshot.filePath)
+        EditorWindowOpener.open(fileURL: fileURL)
+    }
 
-        Button("Show in Finder") {
-            NSWorkspace.shared.selectFile(screenshot.filePath, inFileViewerRootedAtPath: "")
+    private func deleteSelectedScreenshots() {
+        Task {
+            for screenshot in selectedScreenshots {
+                _ = await CaptureHistoryStore.shared.deleteCapture(screenshot, from: modelContext)
+            }
+            selectedScreenshots.removeAll()
+            if isMultiSelectMode {
+                isMultiSelectMode = false
+            }
+        }
+    }
+}
+
+// MARK: - Browser Thumbnail View (wrapper for existing ScreenshotThumbnailView)
+
+struct BrowserThumbnailView: View {
+    let screenshot: Screenshot
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onDoubleClick: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Thumbnail with selection overlay
+            ZStack(alignment: .topTrailing) {
+                if let thumbnailPath = screenshot.thumbnailPath,
+                   let image = NSImage(contentsOfFile: thumbnailPath) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(height: 120)
+                        .cornerRadius(6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
+                        )
+                        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: 120)
+                        .cornerRadius(6)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .foregroundColor(.gray)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
+                        )
+                }
+
+                // Selection checkbox
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.accentColor)
+                        .background(Circle().fill(Color.white))
+                        .padding(4)
+                }
+            }
+            .onTapGesture(count: 2) {
+                onDoubleClick()
+            }
+            .onTapGesture {
+                onSelect()
+            }
+
+            // Filename
+            Text(screenshot.filename)
+                .font(.caption)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            // Metadata
+            HStack {
+                Text(screenshot.captureDate.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Text("\(screenshot.width)×\(screenshot.height)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(8)
+        .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+        .cornerRadius(8)
+    }
+}
+
+// MARK: - Context Menu
+
+struct ScreenshotContextMenu: View {
+    let screenshot: Screenshot
+    let modelContext: ModelContext
+    @State private var showDeleteConfirmation = false
+    @State private var showFirstTimeDeleteWarning = !UserDefaults.standard.bool(forKey: "hasSeenLibraryDeleteWarning")
+
+    var body: some View {
+        Button("Open in Editor") {
+            let fileURL = URL(fileURLWithPath: screenshot.filePath)
+            EditorWindowOpener.open(fileURL: fileURL)
         }
 
         Button("Copy to Clipboard") {
-            if let image = NSImage(contentsOf: screenshot.fileURL) {
+            if let image = NSImage(contentsOfFile: screenshot.filePath) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.writeObjects([image])
             }
         }
 
+        Button("Reveal in Finder") {
+            let fileURL = URL(fileURLWithPath: screenshot.filePath)
+            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+        }
+
         Divider()
-
-        Button(screenshot.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
-            screenshot.toggleFavorite()
-        }
-
-        Button("Add Tag...") {
-            addTag(to: screenshot)
-        }
 
         if !screenshot.tags.isEmpty {
             Menu("Remove Tag") {
@@ -189,11 +305,31 @@ struct ScreenshotBrowserView: View {
             }
         }
 
+        Button("Add Tag...") {
+            addTag(to: screenshot)
+        }
+
         Divider()
 
         Button("Delete", role: .destructive) {
-            Task {
-                await CaptureHistoryStore.shared.deleteCapture(screenshot, from: modelContext)
+            if showFirstTimeDeleteWarning {
+                showFirstTimeDeleteWarning = false
+                UserDefaults.standard.set(true, forKey: "hasSeenLibraryDeleteWarning")
+            }
+            showDeleteConfirmation = true
+        }
+        .alert("Move to Trash?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Move to Trash", role: .destructive) {
+                Task {
+                    _ = await CaptureHistoryStore.shared.deleteCapture(screenshot, from: modelContext)
+                }
+            }
+        } message: {
+            if showFirstTimeDeleteWarning {
+                Text("Screenshots will be moved to the Trash, not permanently deleted. You can restore them from the Trash later.")
+            } else {
+                Text("Move this screenshot to Trash?")
             }
         }
     }
@@ -218,34 +354,4 @@ struct ScreenshotBrowserView: View {
         updated.append(tag)
         screenshot.updateMetadata(tags: updated)
     }
-}
-
-// MARK: - Tag Filter Chip
-private struct TagFilterChip: View {
-    let tag: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: "tag.fill")
-                    .font(.system(size: 9))
-                Text(tag)
-                    .font(.system(size: 11))
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(isSelected ? Color.accentColor : Color(NSColor.controlColor))
-            .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(12)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-#Preview {
-    ScreenshotBrowserView()
-        .modelContainer(for: Screenshot.self, inMemory: true)
-        .frame(width: 800, height: 600)
 }

@@ -11,6 +11,8 @@
 
 import Foundation
 import AppKit
+import Vision
+import CoreImage
 
 // MARK: - Errors
 
@@ -47,6 +49,10 @@ enum AIFeature: String, CaseIterable {
     case tutorialSteps          // numbered how-to steps from UI screenshot
     case smartCrop              // suggest crop region (returns JSON)
     case codeExplanation        // explain code visible in screenshot
+    case autoAnnotate           // describe UI elements and their positions
+    case sensitiveInfo          // detect sensitive data regions for blurring
+    case removeBackground       // background removal (macOS 14+, Vision-based)
+    case autoEnhance            // Core Image auto-enhancement
 
     /// Ordered list of preferred providers for each feature.
     /// The engine tries them in order and uses the first one the user has access to.
@@ -58,6 +64,10 @@ enum AIFeature: String, CaseIterable {
         case .tutorialSteps:      return [.anthropic, .openai, .deepseek, .gemini, .minimax]
         case .smartCrop:          return [.openai, .anthropic, .gemini, .deepseek, .minimax]
         case .codeExplanation:    return [.anthropic, .openai, .deepseek, .gemini, .minimax]
+        case .autoAnnotate:       return [.anthropic, .openai, .gemini, .deepseek, .minimax]
+        case .sensitiveInfo:      return [.anthropic, .openai, .gemini, .deepseek, .minimax]
+        case .removeBackground:   return [.openai, .anthropic, .gemini, .minimax, .deepseek]
+        case .autoEnhance:        return [.openai, .anthropic, .gemini, .minimax, .deepseek]
         }
     }
 
@@ -75,6 +85,14 @@ enum AIFeature: String, CaseIterable {
             return "Analyse this image and suggest the best crop region to highlight the most important content. Return JSON: {\"x\":0,\"y\":0,\"width\":100,\"height\":100} as percentages of total size."
         case .codeExplanation:
             return "Explain the code visible in this screenshot in plain English. Be concise and accurate."
+        case .autoAnnotate:
+            return "Identify all UI elements in this screenshot (buttons, text fields, menus, labels, icons). For each element, list: 1) Element type 2) Approximate position 3) Likely purpose. Use a numbered list."
+        case .sensitiveInfo:
+            return "Identify any sensitive data visible in this screenshot: emails, phone numbers, passwords, API keys, credit card numbers, personal names in sensitive contexts, financial figures. List each item with its approximate location. If none found, say \"No sensitive information detected.\""
+        case .removeBackground:
+            return "This is a background removal request. Describe the main subject(s) in the image for context."
+        case .autoEnhance:
+            return "Describe the overall brightness, contrast, and color quality of this image. Suggest improvements."
         }
     }
 }
@@ -393,4 +411,133 @@ final class AIEngineManager {
     private func buildUserMessage(_ request: AIRequest) -> String {
         request.userPrompt.isEmpty ? "Please analyse the provided image." : request.userPrompt
     }
+
+    // MARK: - Extended AI Operations
+
+    /// Remove background from image using Vision person/subject segmentation.
+    /// Returns a new NSImage with transparent background (PNG-compatible).
+    func removeBackground(from image: NSImage) async throws -> NSImage {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            throw AIError.parseError("Could not create CGImage")
+        }
+        
+        // Try VNGenerateForegroundInstanceMaskRequest (macOS 14+)
+        if #available(macOS 14.0, *) {
+            let request = VNGenerateForegroundInstanceMaskRequest()
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            
+            return try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        try handler.perform([request])
+                        guard let maskResult = request.results?.first else {
+                            continuation.resume(throwing: AIError.parseError("No foreground mask generated"))
+                            return
+                        }
+                        
+                        // Apply mask to create transparent background
+                        let maskBuffer = try maskResult.generateMaskedImage(
+                            ofInstances: maskResult.allInstances,
+                            from: handler,
+                            croppedToInstancesExtent: false
+                        )
+                        
+                        let maskedCIImage = CIImage(cvPixelBuffer: maskBuffer)
+                        let context = CIContext()
+                        guard let maskedCGImage = context.createCGImage(maskedCIImage, from: maskedCIImage.extent) else {
+                            continuation.resume(throwing: AIError.parseError("Failed to create masked image"))
+                            return
+                        }
+                        
+                        let maskedNSImage = NSImage(cgImage: maskedCGImage, size: image.size)
+                        continuation.resume(returning: maskedNSImage)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        } else {
+            // Fallback: use AI API for background removal description
+            throw AIError.parseError("Background removal requires macOS 14 or later")
+        }
+    }
+
+    /// Auto-enhance an image using Core Image filters.
+    /// Applies auto-exposure, auto-white-balance, and contrast adjustment.
+    func autoEnhance(image: NSImage) async throws -> NSImage {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            throw AIError.parseError("Could not create CGImage for enhancement")
+        }
+        
+        let ciImage = CIImage(cgImage: cgImage)
+        let context = CIContext(options: [.useSoftwareRenderer: false])
+        
+        // Apply auto-enhancement filters
+        let filters = ciImage.autoAdjustmentFilters(options: nil)
+        var enhancedImage = ciImage
+        for filter in filters {
+            filter.setValue(enhancedImage, forKey: kCIInputImageKey)
+            if let output = filter.outputImage {
+                enhancedImage = output
+            }
+        }
+        
+        guard let enhancedCGImage = context.createCGImage(enhancedImage, from: enhancedImage.extent) else {
+            throw AIError.parseError("Could not create enhanced image")
+        }
+        
+        return NSImage(cgImage: enhancedCGImage, size: image.size)
+    }
+
+    /// Generate auto-annotations for the image via AI (describes UI elements, code, etc.)
+    func generateAutoAnnotations(for image: NSImage) async throws -> String {
+        return try await run(AIRequest(
+            feature: .captionGeneration,
+            userPrompt: """
+            Analyze this screenshot and identify all important UI elements, text, buttons, and regions.
+            For each element, describe:
+            1. What it is (button, text field, menu, etc.)
+            2. Its approximate position (top-left, center, bottom-right, etc.)
+            3. What action it likely performs
+            Format as a numbered list. Be concise.
+            """
+        ))
+    }
+
+    /// Smart blur: identify sensitive information (emails, phone numbers, credit cards) and describe regions to blur.
+    func identifySensitiveRegions(in image: NSImage) async throws -> String {
+        return try await run(AIRequest(
+            feature: .captionGeneration,
+            userPrompt: """
+            Analyze this screenshot and identify any sensitive information that should be blurred or redacted:
+            - Email addresses
+            - Phone numbers
+            - Credit card numbers
+            - Passwords or API keys
+            - Personal names in sensitive contexts
+            - Financial figures
+            
+            For each sensitive item found, describe its approximate location.
+            If no sensitive information is found, say "No sensitive information detected."
+            Format as a numbered list.
+            """
+        ))
+    }
+
+    /// Explain code visible in the screenshot.
+    func explainCodeInImage(_ image: NSImage) async throws -> String {
+        return try await run(AIRequest(
+            feature: .captionGeneration,
+            userPrompt: """
+            Look at this screenshot. If it contains code or command-line output:
+            1. Identify the programming language or tool
+            2. Explain what the code/command does in plain English
+            3. Point out any potential bugs, errors, or improvements
+            
+            If there is no code visible, say "No code found in this screenshot."
+            Be concise but thorough.
+            """
+        ))
+    }
+
 }

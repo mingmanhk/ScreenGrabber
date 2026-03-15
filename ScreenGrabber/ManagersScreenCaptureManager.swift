@@ -1151,8 +1151,6 @@ class ScreenCaptureManager: ObservableObject {
 // MARK: - Additional Notification Names
 
 extension Notification.Name {
-    static let openScreenshotInEditor = Notification.Name("openScreenshotInEditor")
-    static let captureProgressUpdated = Notification.Name("captureProgressUpdated")
 }
 
 // MARK: - Area Selector Window

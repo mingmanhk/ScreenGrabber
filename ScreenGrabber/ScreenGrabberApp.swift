@@ -12,6 +12,7 @@ import SwiftData
 
 extension Notification.Name {
     static let requestSettingsOpen = Notification.Name("requestSettingsOpen")
+    static let openScreenshotInEditor = Notification.Name("openScreenshotInEditor")
 }
 
 // MARK: - App
@@ -19,34 +20,31 @@ extension Notification.Name {
 @main
 struct ScreenGrabberApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.openWindow) private var openWindow
 
     /// Persistent SwiftData store. Falls back to an in-memory store if the on-disk
     /// store is corrupted, then shows an alert so the user knows data was reset.
-    static let sharedModelContainer: ModelContainer = {
-        let schema = Schema([Item.self, Screenshot.self, Annotation.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    static var sharedModelContainer: ModelContainer = {
+        let schema = Schema([
+            Screenshot.self,
+        ])
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
-        if let container = try? ModelContainer(for: schema, configurations: [config]) {
-            return container
+        do {
+            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+        } catch {
+            // If the on-disk store is corrupted, fall back to in-memory and show an alert
+            let fallbackConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            do {
+                let fallback = try ModelContainer(for: schema, configurations: [fallbackConfig])
+                Task { @MainActor in
+                    Self.showDataResetAlert(persistent: false)
+                }
+                return fallback
+            } catch {
+                fatalError("Could not create ModelContainer: \(error)")
+            }
         }
-
-        // Attempt recovery: delete the corrupt store and recreate it.
-        let storeURL = ModelConfiguration(schema: schema).url
-        if FileManager.default.fileExists(atPath: storeURL.path) {
-            try? FileManager.default.removeItem(at: storeURL)
-            CaptureLogger.log(.error, "Deleted corrupt SwiftData store — creating a fresh one.")
-        }
-
-        if let recovered = try? ModelContainer(for: schema, configurations: [config]) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { showDataResetAlert() }
-            return recovered
-        }
-
-        // Final fallback: in-memory store so the app remains usable.
-        let inMemoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        CaptureLogger.log(.error, "All store recovery attempts failed — running in-memory mode.")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { showDataResetAlert(persistent: false) }
-        return (try? ModelContainer(for: schema, configurations: [inMemoryConfig]))!
     }()
 
     var body: some Scene {
@@ -96,10 +94,13 @@ struct ScreenGrabberApp: App {
 // MARK: - App Delegate
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    @Environment(\.openWindow) private var openWindow
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         DotEnvLoader.load()
         SubscriptionManager.shared.start()
         setupGlobalHotkey()
+        setupEditorNotificationObserver()
 
         NotificationCenter.default.addObserver(
             forName: .requestSettingsOpen,
@@ -109,6 +110,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         checkAccessibilityPermissionsIfNeeded()
         promptForSaveLocationOnFirstLaunch()
+    }
+
+    // MARK: - Editor Notification
+
+    private func setupEditorNotificationObserver() {
+        NotificationCenter.default.addObserver(
+            forName: .openScreenshotInEditor,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let screenshot = notification.object as? Screenshot else {
+                CaptureLogger.log(.error, "openScreenshotInEditor notification missing screenshot object", level: .error)
+                return
+            }
+            
+            let fileURL = URL(fileURLWithPath: screenshot.filePath)
+            EditorWindowOpener.open(fileURL: fileURL)
+            
+            CaptureLogger.log(.debug, "Editor window opened for: \(screenshot.filename)", level: .info)
+        }
+        
+        CaptureLogger.log(.debug, "Editor notification observer registered", level: .info)
     }
 
     // MARK: - Accessibility
@@ -203,21 +226,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Settings Window
 
     func openSettingsWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        // Use SwiftUI's openWindow environment action instead of synthetic key event
         if let window = NSApp.windows.first(where: {
             $0.title == "Settings" || $0.identifier?.rawValue == "settings"
         }) {
             window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
         } else {
-            NSApp.activate(ignoringOtherApps: true)
-            // Post ⌘, to trigger SwiftUI's Settings scene
-            if let event = NSEvent.keyEvent(
-                with: .keyDown, location: .zero, modifierFlags: .command,
-                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: 0,
-                context: nil, characters: ",", charactersIgnoringModifiers: ",",
-                isARepeat: false, keyCode: 43
-            ) {
-                NSApp.postEvent(event, atStart: true)
+            // Post notification that the main app will handle
+            NotificationCenter.default.post(
+                name: NSApplication.didBecomeActiveNotification,
+                object: NSApp
+            )
+            // Use the SwiftUI openWindow action directly
+            DispatchQueue.main.async {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
         }
     }

@@ -90,12 +90,14 @@ class CaptureHistoryStore: ObservableObject {
     }
     
     func deleteCapture(_ screenshot: Screenshot, from modelContext: ModelContext) async -> Result<Void, ScreenGrabberTypes.CaptureError> {
-        // Delete file
+        // Move file to Trash instead of permanent delete
         let fileURL = URL(fileURLWithPath: screenshot.filePath)
         if FileManager.default.fileExists(atPath: fileURL.path) {
             do {
-                try FileManager.default.removeItem(at: fileURL)
+                try FileManager.default.trashItem(at: fileURL, resultingItemURL: nil)
+                CaptureLogger.log(.capture, "Moved to trash: \(fileURL.lastPathComponent)", level: .success)
             } catch {
+                CaptureLogger.log(.error, "Failed to trash item: \(error.localizedDescription)", level: .error)
                 return .failure(.fileWriteFailed(underlying: error))
             }
         }
@@ -133,4 +135,3 @@ class CaptureHistoryStore: ObservableObject {
         }
     }
 }
-

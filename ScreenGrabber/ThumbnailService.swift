@@ -72,6 +72,8 @@ actor ThumbnailService {
         ctx.draw(cgSource, in: CGRect(x: 0, y: 0, width: w, height: h))
 
         guard let cgOut = ctx.makeImage() else { return image }
-        return NSImage(cgImage: cgOut, size: newSize)
+        let nsImage = MainActor.assumeIsolated { NSImage(cgImage: cgOut, size: newSize) }
+        return nsImage
     }
 }
+

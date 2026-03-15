@@ -85,6 +85,9 @@ struct EditorCanvasView: View {
                                     annotation: selected,
                                     onDrag: { handle, translation in
                                         handleResize(annotation: selected, handle: handle, translation: translation)
+                                    },
+                                    onRotate: { angle in
+                                        selected.rotation = angle
                                     }
                                 )
                             }
@@ -114,6 +117,16 @@ struct EditorCanvasView: View {
         for annotation in editorState.annotations {
             var context = context
             context.opacity = annotation.opacity
+
+            // Apply rotation transform around annotation center
+            if annotation.rotation != 0.0 {
+                let centerX = (annotation.cgStartPoint.x + annotation.cgEndPoint.x) / 2
+                let centerY = (annotation.cgStartPoint.y + annotation.cgEndPoint.y) / 2
+                let center = CGPoint(x: centerX, y: centerY)
+                context.translateBy(x: center.x, y: center.y)
+                context.rotate(by: .radians(annotation.rotation))
+                context.translateBy(x: -center.x, y: -center.y)
+            }
             
             switch annotation.tool {
             case .arrow:
@@ -482,6 +495,10 @@ enum ResizeHandle: CaseIterable {
 struct SelectionHandlesView: View {
     let annotation: Annotation
     let onDrag: (ResizeHandle, CGSize) -> Void
+    var onRotate: ((Double) -> Void)? = nil
+
+    @State private var rotateStart: CGPoint? = nil
+    @State private var rotateStartAngle: Double = 0
     
     var body: some View {
         let rect = CGRect(
@@ -490,8 +507,10 @@ struct SelectionHandlesView: View {
             width: abs(annotation.cgEndPoint.x - annotation.cgStartPoint.x),
             height: abs(annotation.cgEndPoint.y - annotation.cgStartPoint.y)
         )
+        let center = CGPoint(x: rect.midX, y: rect.midY)
         
         ZStack {
+            // Resize handles
             ForEach(ResizeHandle.allCases, id: \.self) { handle in
                 Circle()
                     .fill(Color.white)
@@ -504,6 +523,43 @@ struct SelectionHandlesView: View {
                                 onDrag(handle, value.translation)
                             }
                     )
+            }
+
+            // Rotation handle — circle above the top edge
+            let rotHandlePos = CGPoint(x: rect.midX, y: rect.minY - 28)
+            ZStack {
+                // Connector line
+                Path { p in
+                    p.move(to: CGPoint(x: rect.midX, y: rect.minY))
+                    p.addLine(to: rotHandlePos)
+                }
+                .stroke(Color.blue, lineWidth: 1)
+                
+                // Handle knob
+                Circle()
+                    .fill(Color.white)
+                    .stroke(Color.blue, lineWidth: 2)
+                    .frame(width: 12, height: 12)
+                    .position(rotHandlePos)
+                    .gesture(
+                        DragGesture(minimumDistance: 2)
+                            .onChanged { value in
+                                if rotateStart == nil {
+                                    rotateStart = value.startLocation
+                                    rotateStartAngle = annotation.rotation
+                                }
+                                let dx = value.location.x - center.x
+                                let dy = value.location.y - center.y
+                                let angle = atan2(dy, dx)
+                                let startDx = rotHandlePos.x - center.x
+                                let startDy = rotHandlePos.y - center.y
+                                let startAngle = atan2(startDy, startDx)
+                                let delta = angle - startAngle
+                                onRotate?(rotateStartAngle + Double(delta))
+                            }
+                            .onEnded { _ in rotateStart = nil }
+                    )
+                    .help("Drag to rotate")
             }
         }
     }

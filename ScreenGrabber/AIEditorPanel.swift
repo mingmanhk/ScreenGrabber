@@ -9,7 +9,12 @@
 //    • OCR / Extract Text
 //    • Generate Caption
 //    • Generate Tags
-//    • Tutorial Steps Generator
+//    • Tutorial Steps
+//    • Remove Background
+//    • Auto-Enhance
+//    • Auto-Annotate (describe UI elements)
+//    • Smart Blur / Detect Sensitive Info
+//    • Explain Code
 //
 //  Each tool shows a lock icon when the user is not entitled and opens
 //  the paywall sheet when tapped.
@@ -17,6 +22,7 @@
 
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 // MARK: - AI Editor Panel
 
@@ -30,6 +36,8 @@ struct AIEditorPanel: View {
     @State private var activeFeature: AIEditorFeature? = nil
     @State private var errorMessage: String? = nil
     @State private var copiedToClipboard = false
+    @State private var processedImage: NSImage? = nil
+    @State private var showProcessedImage = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -37,7 +45,7 @@ struct AIEditorPanel: View {
             Divider()
             if isEntitled {
                 featureButtons
-                if !currentResult.isEmpty || isRunning || errorMessage != nil {
+                if !currentResult.isEmpty || isRunning || errorMessage != nil || processedImage != nil {
                     Divider()
                     resultArea
                 }
@@ -72,21 +80,23 @@ struct AIEditorPanel: View {
     // MARK: - Feature Buttons
 
     private var featureButtons: some View {
-        VStack(spacing: 0) {
-            ForEach(AIEditorFeature.allCases) { feature in
-                AIFeatureButton(
-                    feature: feature,
-                    isActive: activeFeature == feature,
-                    isRunning: isRunning && activeFeature == feature
-                ) {
-                    run(feature)
-                }
-                if feature != AIEditorFeature.allCases.last {
-                    Divider().padding(.leading, 40)
+        ScrollView {
+            VStack(spacing: 0) {
+                ForEach(AIEditorFeature.allCases) { feature in
+                    AIFeatureButton(
+                        feature: feature,
+                        isActive: activeFeature == feature,
+                        isRunning: isRunning && activeFeature == feature
+                    ) {
+                        run(feature)
+                    }
+                    if feature != AIEditorFeature.allCases.last {
+                        Divider().padding(.leading, 40)
+                    }
                 }
             }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
     }
 
     // MARK: - Result Area
@@ -101,18 +111,57 @@ struct AIEditorPanel: View {
                     Text(error)
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(10)
             } else if isRunning {
                 HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
+                    ProgressView().scaleEffect(0.8)
                     Text("Processing…")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
-            } else {
+            } else if let processed = processedImage {
+                // Show processed image result (background removal, enhancement)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Result Preview")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 10)
+                    Image(nsImage: processed)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: 160)
+                        .cornerRadius(6)
+                        .padding(.horizontal, 10)
+                    HStack {
+                        Spacer()
+                        Button("Apply to Canvas") {
+                            applyProcessedImage(processed)
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        Button("Save As…") {
+                            saveProcessedImage(processed)
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        Button("Discard") {
+                            processedImage = nil
+                            activeFeature = nil
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                        .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 8)
+                }
+            } else if !currentResult.isEmpty {
                 ScrollView {
                     Text(currentResult)
                         .font(.system(size: 12))
@@ -159,7 +208,7 @@ struct AIEditorPanel: View {
                 .foregroundColor(.secondary)
             Text("AI Pro Required")
                 .font(.system(size: 13, weight: .semibold))
-            Text("Subscribe to AI Pro or add your own API key to unlock OCR, captions, tags, and more.")
+            Text("Subscribe to AI Pro or add your own API key to unlock OCR, captions, remove background, and more.")
                 .font(.caption)
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
@@ -188,16 +237,31 @@ struct AIEditorPanel: View {
         isRunning = true
         errorMessage = nil
         currentResult = ""
+        processedImage = nil
 
         Task {
             do {
-                let result = try await feature.run(image: img)
-                await MainActor.run {
-                    currentResult = result
-                    isRunning = false
-                    // Wire OCR result into editor state
-                    if feature == .ocr {
-                        editorState.ocrText = result
+                switch feature {
+                case .removeBackground:
+                    let result = try await AIEngineManager.shared.removeBackground(from: img)
+                    await MainActor.run {
+                        processedImage = result
+                        isRunning = false
+                    }
+                case .autoEnhance:
+                    let result = try await AIEngineManager.shared.autoEnhance(image: img)
+                    await MainActor.run {
+                        processedImage = result
+                        isRunning = false
+                    }
+                default:
+                    let result = try await feature.run(image: img)
+                    await MainActor.run {
+                        currentResult = result
+                        isRunning = false
+                        if feature == .ocr {
+                            editorState.ocrText = result
+                        }
                     }
                 }
             } catch {
@@ -205,6 +269,30 @@ struct AIEditorPanel: View {
                     errorMessage = error.localizedDescription
                     isRunning = false
                 }
+            }
+        }
+    }
+
+    private func applyProcessedImage(_ processed: NSImage) {
+        // Notify editor to replace the current image
+        NotificationCenter.default.post(
+            name: Notification.Name("replaceEditorImage"),
+            object: processed
+        )
+        processedImage = nil
+        activeFeature = nil
+    }
+
+    private func saveProcessedImage(_ processed: NSImage) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.nameFieldStringValue = "processed_screenshot.png"
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            if let tiff = processed.tiffRepresentation,
+               let bitmap = NSBitmapImageRep(data: tiff),
+               let png = bitmap.representation(using: .png, properties: [:]) {
+                try? png.write(to: url)
             }
         }
     }
@@ -217,34 +305,67 @@ enum AIEditorFeature: String, CaseIterable, Identifiable {
     case caption
     case tags
     case tutorialSteps
+    case removeBackground
+    case autoEnhance
+    case autoAnnotate
+    case smartBlur
+    case explainCode
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .ocr:           return "Extract Text (OCR)"
-        case .caption:       return "Generate Caption"
-        case .tags:          return "Generate Tags"
-        case .tutorialSteps: return "Tutorial Steps"
+        case .ocr:             return "Extract Text (OCR)"
+        case .caption:         return "Generate Caption"
+        case .tags:            return "Generate Tags"
+        case .tutorialSteps:   return "Tutorial Steps"
+        case .removeBackground:return "Remove Background"
+        case .autoEnhance:     return "Auto-Enhance"
+        case .autoAnnotate:    return "Auto-Annotate"
+        case .smartBlur:       return "Detect Sensitive Info"
+        case .explainCode:     return "Explain Code"
         }
     }
 
     var icon: String {
         switch self {
-        case .ocr:           return "doc.text.magnifyingglass"
-        case .caption:       return "text.bubble"
-        case .tags:          return "tag"
-        case .tutorialSteps: return "list.number"
+        case .ocr:             return "doc.text.magnifyingglass"
+        case .caption:         return "text.bubble"
+        case .tags:            return "tag"
+        case .tutorialSteps:   return "list.number"
+        case .removeBackground:return "scissors"
+        case .autoEnhance:     return "wand.and.stars"
+        case .autoAnnotate:    return "pencil.and.outline"
+        case .smartBlur:       return "eye.slash"
+        case .explainCode:     return "chevron.left.forwardslash.chevron.right"
         }
     }
 
     var description: String {
         switch self {
-        case .ocr:           return "Extract all text visible in the screenshot"
-        case .caption:       return "Write a one-sentence summary of the screenshot"
-        case .tags:          return "Generate 3–5 keyword tags"
-        case .tutorialSteps: return "Convert this screenshot into step-by-step instructions"
+        case .ocr:             return "Extract all text visible in the screenshot"
+        case .caption:         return "Write a one-sentence summary"
+        case .tags:            return "Generate 3–5 keyword tags"
+        case .tutorialSteps:   return "Convert screenshot into step-by-step guide"
+        case .removeBackground:return "Remove background, keep foreground (macOS 14+)"
+        case .autoEnhance:     return "Improve exposure, contrast & white balance"
+        case .autoAnnotate:    return "Describe UI elements and their positions"
+        case .smartBlur:       return "Find emails, passwords and sensitive data"
+        case .explainCode:     return "Explain code or terminal output in plain English"
         }
+    }
+
+    var category: FeatureCategory {
+        switch self {
+        case .ocr, .caption, .tags, .tutorialSteps, .autoAnnotate, .smartBlur, .explainCode:
+            return .text
+        case .removeBackground, .autoEnhance:
+            return .image
+        }
+    }
+
+    enum FeatureCategory {
+        case text, image
     }
 
     func run(image: NSImage) async throws -> String {
@@ -258,6 +379,15 @@ enum AIEditorFeature: String, CaseIterable, Identifiable {
             return tags.joined(separator: ", ")
         case .tutorialSteps:
             return try await AIEngineManager.shared.generateTutorialSteps(for: image)
+        case .autoAnnotate:
+            return try await AIEngineManager.shared.generateAutoAnnotations(for: image)
+        case .smartBlur:
+            return try await AIEngineManager.shared.identifySensitiveRegions(in: image)
+        case .explainCode:
+            return try await AIEngineManager.shared.explainCodeInImage(image)
+        case .removeBackground, .autoEnhance:
+            // These are handled specially in AIEditorPanel (return NSImage, not String)
+            throw AIError.parseError("Use AIEngineManager directly for image-result features")
         }
     }
 }
@@ -275,10 +405,14 @@ private struct AIFeatureButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                Image(systemName: feature.icon)
-                    .font(.system(size: 14))
-                    .foregroundColor(isActive ? .purple : .secondary)
-                    .frame(width: 20)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(iconBackground)
+                        .frame(width: 24, height: 24)
+                    Image(systemName: feature.icon)
+                        .font(.system(size: 12))
+                        .foregroundColor(iconForeground)
+                }
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(feature.displayName)
@@ -314,5 +448,19 @@ private struct AIFeatureButton: View {
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
         .help(feature.description)
+    }
+
+    private var iconBackground: Color {
+        switch feature.category {
+        case .image: return Color.blue.opacity(0.15)
+        case .text:  return Color.purple.opacity(0.12)
+        }
+    }
+
+    private var iconForeground: Color {
+        switch feature.category {
+        case .image: return .blue
+        case .text:  return .purple
+        }
     }
 }

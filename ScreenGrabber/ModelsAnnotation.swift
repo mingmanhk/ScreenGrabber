@@ -48,6 +48,7 @@ final class Annotation {
     var layer: Int  // Z-order for overlapping annotations
     var isHidden: Bool
     var isLocked: Bool
+    var rotation: Double  // radians, 0 = no rotation
     var shadowEnabled: Bool
     var shadowBlur: Double
     
@@ -77,6 +78,7 @@ final class Annotation {
         self.layer = 0
         self.isHidden = false
         self.isLocked = false
+        self.rotation = 0.0
         self.shadowEnabled = false
         self.shadowBlur = 4.0
     }

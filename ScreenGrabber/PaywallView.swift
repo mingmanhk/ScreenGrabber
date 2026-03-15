@@ -20,11 +20,14 @@ private struct AIFeatureRow: Identifiable {
 }
 
 private let aiFeatures: [AIFeatureRow] = [
-    AIFeatureRow(icon: "text.viewfinder",       title: "Smart OCR",          subtitle: "Extract text from any screenshot instantly"),
-    AIFeatureRow(icon: "text.bubble.fill",       title: "AI Captions",        subtitle: "Auto-generate concise image descriptions"),
-    AIFeatureRow(icon: "tag.fill",               title: "Smart Tags",         subtitle: "Keyword tags generated automatically"),
-    AIFeatureRow(icon: "list.number",            title: "Tutorial Steps",     subtitle: "Turn UI screenshots into step-by-step guides"),
-    AIFeatureRow(icon: "cursorarrow.crop",        title: "Smart Crop",         subtitle: "AI-suggested crop regions for key content"),
+    AIFeatureRow(icon: "text.viewfinder",       title: "Smart OCR",              subtitle: "Extract text from any screenshot instantly"),
+    AIFeatureRow(icon: "text.bubble.fill",       title: "AI Captions",            subtitle: "Auto-generate concise image descriptions"),
+    AIFeatureRow(icon: "tag.fill",               title: "Smart Tags",             subtitle: "Keyword tags generated automatically"),
+    AIFeatureRow(icon: "list.number",            title: "Tutorial Steps",         subtitle: "Turn UI screenshots into step-by-step guides"),
+    AIFeatureRow(icon: "scissors",               title: "Remove Background",      subtitle: "Isolate subjects with one click (macOS 14+)"),
+    AIFeatureRow(icon: "wand.and.stars",         title: "Auto-Enhance",           subtitle: "AI exposure, contrast & white balance fix"),
+    AIFeatureRow(icon: "pencil.and.outline",     title: "Auto-Annotate",          subtitle: "Describe UI elements and positions automatically"),
+    AIFeatureRow(icon: "eye.slash",              title: "Smart Blur",             subtitle: "Detect and redact sensitive info automatically"),
     AIFeatureRow(icon: "chevron.left.forwardslash.chevron.right", title: "Code Explain", subtitle: "Understand code visible in any screenshot"),
 ]
 
