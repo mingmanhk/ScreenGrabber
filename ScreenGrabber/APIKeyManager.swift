@@ -131,6 +131,7 @@ final class APIKeyManager: ObservableObject {
     }
 
     func load(for provider: AIProvider) -> String? {
+        // First try Keychain
         let query: [String: Any] = [
             kSecClass as String:       kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -139,11 +140,23 @@ final class APIKeyManager: ObservableObject {
             kSecMatchLimit as String:  kSecMatchLimitOne
         ]
         var item: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+        if SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
               let data = item as? Data,
               let key = String(data: data, encoding: .utf8),
-              !key.isEmpty else { return nil }
-        return key
+              !key.isEmpty {
+            return key
+        }
+        
+        // Fallback to environment variable in DEBUG builds
+        #if DEBUG
+        let envKey = environmentVariableName(for: provider)
+        if let envValue = ProcessInfo.processInfo.environment[envKey], !envValue.isEmpty {
+            CaptureLogger.log(.debug, "APIKeyManager: using environment variable \(envKey) for \(provider.rawValue)", level: .debug)
+            return envValue
+        }
+        #endif
+        
+        return nil
     }
 
     func delete(for provider: AIProvider) {
@@ -157,6 +170,18 @@ final class APIKeyManager: ObservableObject {
     }
 
     func hasKey(for provider: AIProvider) -> Bool { load(for: provider) != nil }
+
+    // MARK: - Environment Variable Support
+    
+    private func environmentVariableName(for provider: AIProvider) -> String {
+        switch provider {
+        case .minimax:   return "MINIMAX_API_KEY"
+        case .deepseek:  return "DEEPSEEK_API_KEY"
+        case .openai:    return "OPENAI_API_KEY"
+        case .anthropic: return "ANTHROPIC_API_KEY"
+        case .gemini:    return "GEMINI_API_KEY"
+        }
+    }
 
     var hasAnyKey: Bool { AIProvider.allCases.contains { hasKey(for: $0) } }
 
