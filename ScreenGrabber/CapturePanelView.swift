@@ -160,7 +160,7 @@ struct CapturePanelView: View {
         
         // Handle the capture based on open method
         switch selectedOpenMethod {
-        case .saveToFile:
+case .saveToFile:
             let metadata = LegacyUnifiedCaptureManager.CaptureMetadata(
                 captureType: mapCaptureType(selectedCaptureType),
                 timestamp: Date(),
@@ -171,15 +171,15 @@ struct CapturePanelView: View {
             captureProgress = 0.8
             
             await captureManager.saveCapture(metadata, to: modelContext, copyToClipboard: false)
-            
-        case .clipboard:
+
+case .clipboard:
             captureStatus = "Copying to clipboard..."
             captureProgress = 0.9
             
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.writeObjects([image])
-            
+
         case .editor:
             captureStatus = "Opening editor..."
             captureProgress = 0.9
@@ -191,11 +191,26 @@ struct CapturePanelView: View {
                 image: image
             )
             
-            await captureManager.saveCapture(metadata, to: modelContext, copyToClipboard: false)
-            
-            // TODO: Open editor with the image
+            // Save the capture and open editor
+            if let savedURL = await captureManager.saveCapture(metadata, to: modelContext, copyToClipboard: false) {
+                // Create a Screenshot object from the saved file
+                let screenshot = Screenshot(
+                    filename: savedURL.lastPathComponent,
+                    filePath: savedURL.path,
+                    captureType: mapCaptureType(selectedCaptureType).rawValue,
+                    width: Int(image.size.width),
+                    height: Int(image.size.height),
+                    timestamp: Date(),
+                    sourceDisplay: nil,
+                    sourceWindow: nil
+                )
+                EditorWindowHelper.shared.openEditor(for: screenshot)
+            }
+            captureProgress = 0.9
             
         case .preview:
+            // This case exists in enum but is not used in UI
+            // Handle it gracefully
             captureStatus = "Opening preview..."
             captureProgress = 0.9
             
@@ -282,7 +297,11 @@ struct CapturePanelView: View {
         
         task.arguments = ["-i", "-s", tempURL.path]
         
-        return await withCheckedContinuation { continuation in
+        
+        // Error handling setup
+        var captureError: Error?
+        
+    return await withCheckedContinuation { continuation in
             task.terminationHandler = { _ in
                 if FileManager.default.fileExists(atPath: tempURL.path),
                    let image = NSImage(contentsOf: tempURL) {
@@ -308,7 +327,11 @@ struct CapturePanelView: View {
         
         task.arguments = ["-i", "-w", tempURL.path]
         
-        return await withCheckedContinuation { continuation in
+        
+        // Error handling setup
+        var captureError: Error?
+        
+    return await withCheckedContinuation { continuation in
             task.terminationHandler = { _ in
                 if FileManager.default.fileExists(atPath: tempURL.path),
                    let image = NSImage(contentsOf: tempURL) {
@@ -324,9 +347,17 @@ struct CapturePanelView: View {
     }
     
     private func captureScrolling() async -> NSImage? {
-        // TODO: Implement scrolling capture or integrate with existing scrolling capture manager
-        // For now, fall back to area capture
-        return await captureArea()
+        // Use ScrollingCaptureService for proper scrolling capture
+        let result = await ScrollingCaptureService.shared.performScrollingCapture()
+        
+        switch result {
+        case .success(let image):
+            return image
+        case .failure(let error):
+            // Log the error and fall back to area capture
+            print("Scrolling capture failed: \(error.localizedDescription)")
+            return await captureArea()
+        }
     }
     
     private func mapCaptureType(_ type: CaptureType) -> LegacyUnifiedCaptureManager.CaptureMetadata.CaptureType {

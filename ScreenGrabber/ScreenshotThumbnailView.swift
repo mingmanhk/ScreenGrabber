@@ -6,11 +6,15 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ScreenshotThumbnailView: View {
     let screenshot: Screenshot
+    @Environment(\.modelContext) private var modelContext
     @State private var thumbnail: NSImage?
     @State private var isHovered = false
+    @State private var showDeleteConfirmation = false
+    @State private var showFirstTimeDeleteWarning = !UserDefaults.standard.bool(forKey: "hasSeenThumbnailDeleteWarning")
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -62,6 +66,22 @@ struct ScreenshotThumbnailView: View {
                                 .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
+                        
+                        Button {
+                            if showFirstTimeDeleteWarning {
+                                showFirstTimeDeleteWarning = false
+                                UserDefaults.standard.set(true, forKey: "hasSeenThumbnailDeleteWarning")
+                            }
+                            showDeleteConfirmation = true
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.title3)
+                                .foregroundColor(.white)
+                                .frame(width: 40, height: 40)
+                                .background(Color.red)
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -97,11 +117,29 @@ struct ScreenshotThumbnailView: View {
         .task {
             await loadThumbnail()
         }
+        .alert("Move to Trash?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Move to Trash", role: .destructive) {
+                Task {
+                    // Delete the screenshot using CaptureHistoryStore
+                    _ = await CaptureHistoryStore.shared.deleteCapture(screenshot, from: modelContext)
+                }
+            }
+        }
+        .alert("First Time Delete Warning", isPresented: $showFirstTimeDeleteWarning) {
+            Button("OK") {
+                showFirstTimeDeleteWarning = false
+                UserDefaults.standard.set(true, forKey: "hasSeenThumbnailDeleteWarning")
+                showDeleteConfirmation = true
+            }
+        } message: {
+            Text("Deleting a capture will move the file to Trash.")
+        }
     }
     
     private var captureTypeIcon: String {
         guard let type = CaptureType(rawValue: screenshot.captureType) else {
-            return "camera"
+            return "photo"
         }
         return type.icon
     }

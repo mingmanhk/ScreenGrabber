@@ -23,7 +23,7 @@ struct ToolPropertiesPanel: View {
                 
                 // Tool-specific properties
                 switch editorState.selectedTool {
-                case .pen, .line, .arrow, .highlighter:
+                case .freehand, .line, .arrow, .highlighter:
                     LineWidthSection(editorState: editorState)
                     OpacitySection(editorState: editorState)
                     

@@ -86,7 +86,7 @@ struct ToolPropertiesSection: View {
             
             // Tool-specific properties
             switch editorState.selectedTool {
-            case .pen, .freehand, .highlighter, .line, .arrow:
+            case .freehand, .highlighter, .line, .arrow:
                 DrawingToolProperties(editorState: editorState)
                 
             case .shape:

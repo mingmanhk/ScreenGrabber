@@ -69,6 +69,7 @@ struct EditorInspectorView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Opacity")
+                                .help("Adjust transparency from 0% (fully transparent) to 100% (fully opaque). For blur/pixelate tools, lower opacity makes the effect more subtle.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()

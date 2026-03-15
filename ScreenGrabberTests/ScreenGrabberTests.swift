@@ -377,7 +377,7 @@ struct EditorToolTests {
 
     @Test func keyToolsPresent() {
         let cases = Set(EditorTool.allCases.map(\.rawValue))
-        for required in ["selection", "pen", "arrow", "text", "crop", "blur", "eraser"] {
+        for required in ["selection", "freehand", "arrow", "text", "crop", "blur", "eraser"] {
             #expect(cases.contains(required), "Missing expected tool: \(required)")
         }
     }

@@ -29,8 +29,8 @@ struct SimpleImageEditorView: View {
                         selectedTool = "arrow"
                     }
                     
-                    SimpleToolButton(tool: "pen", icon: "pencil", isSelected: selectedTool == "pen") {
-                        selectedTool = "pen"
+                    SimpleToolButton(tool: "freehand", icon: "pencil", isSelected: selectedTool == "freehand") {
+                        selectedTool = "freehand"
                     }
                     
                     SimpleToolButton(tool: "rectangle", icon: "rectangle", isSelected: selectedTool == "rectangle") {
@@ -167,7 +167,7 @@ struct SimpleImageEditorView: View {
         let color = Color(annotation.color)
         
         switch annotation.tool {
-        case "pen":
+        case "freehand":
             if annotation.points.count > 1 {
                 var path = Path()
                 path.move(to: annotation.points[0])
@@ -240,7 +240,7 @@ struct SimpleImageEditorView: View {
             context.setLineWidth(annotation.lineWidth)
             
             switch annotation.tool {
-            case "pen":
+            case "freehand":
                 if annotation.points.count > 1 {
                     context.move(to: annotation.points[0])
                     for point in annotation.points.dropFirst() {

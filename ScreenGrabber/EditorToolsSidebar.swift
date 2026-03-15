@@ -15,11 +15,11 @@ struct EditorToolsSidebar: View {
     // Tool groups for organization
     private let basicTools: [EditorTool] = [
         .selection,
-        .move
+        .pan
     ]
     
     private let drawingTools: [EditorTool] = [
-        .pen,
+        
         .highlighter,
         .line,
         .arrow

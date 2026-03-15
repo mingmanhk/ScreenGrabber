@@ -173,7 +173,7 @@ struct ImageCanvas: View {
         }
         
         // For move tool, check if we're clicking on an annotation to move it
-        if editorState.selectedTool == .move {
+        if editorState.selectedTool == .pan {
             if let annotation = findAnnotationAt(point) {
                 editorState.selectedAnnotation = annotation
                 // Store the starting point for moving
@@ -193,7 +193,7 @@ struct ImageCanvas: View {
         annotation.blurRadius = editorState.blurRadius
         
         switch editorState.selectedTool {
-        case .pen, .freehand, .highlighter, .eraser:
+        case .freehand, .highlighter, .eraser:
             let path = CGMutablePath()
             path.move(to: point)
             currentPath = path
@@ -214,7 +214,7 @@ struct ImageCanvas: View {
     
     private func updateCurrentDrawing(to point: CGPoint) {
         // Handle move tool
-        if editorState.selectedTool == .move, let selectedAnnotation = editorState.selectedAnnotation {
+        if editorState.selectedTool == .pan, let selectedAnnotation = editorState.selectedAnnotation {
             let deltaX = point.x - dragStart.x
             let deltaY = point.y - dragStart.y
             
@@ -248,7 +248,7 @@ struct ImageCanvas: View {
         guard var annotation = tempAnnotation else { return }
         
         switch editorState.selectedTool {
-        case .pen, .freehand, .highlighter, .eraser:
+        case .freehand, .highlighter, .eraser:
             currentPath?.addLine(to: point)
             annotation.points.append(point)
             
@@ -291,7 +291,7 @@ struct ImageCanvas: View {
     
     private func shouldAddAnnotation(_ annotation: DrawingAnnotation) -> Bool {
         switch annotation.tool {
-        case .pen, .freehand, .highlighter, .eraser:
+        case .freehand, .highlighter, .eraser:
             return annotation.points.count > 1
             
         case .line, .arrow:
@@ -326,7 +326,7 @@ struct ImageCanvas: View {
                 }
                 return false
                 
-            case .pen, .freehand, .highlighter, .eraser:
+            case .freehand, .highlighter, .eraser:
                 // Check if point is near any point in the path
                 return annotation.points.contains { pathPoint in
                     distance(point, pathPoint) < annotation.lineWidth + 5
@@ -465,7 +465,7 @@ struct AnnotationOverlay: View {
         context.opacity = annotation.opacity
         
         switch annotation.tool {
-        case .pen, .freehand:
+        case .freehand:
             if let path = annotation.path {
                 context.stroke(
                     Path(path),
@@ -837,7 +837,7 @@ struct CurrentDrawingOverlay: View {
             context.opacity = annotation.opacity
             
             switch editorState.selectedTool {
-            case .pen, .freehand, .highlighter, .eraser:
+            case .freehand, .highlighter, .eraser:
                 if let path = currentPath {
                     let swiftUIPath = Path(path)
                     context.stroke(

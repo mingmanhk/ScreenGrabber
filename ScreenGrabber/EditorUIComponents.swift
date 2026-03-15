@@ -195,7 +195,7 @@ struct ShapeTypePicker: View {
 // MARK: - Preview
 #Preview("Tool Button") {
     HStack(spacing: 12) {
-        EditorToolLargeButton(tool: .pen, isSelected: false) {}
+        EditorToolLargeButton(tool: .freehand, isSelected: false) {}
         EditorToolLargeButton(tool: .text, isSelected: true) {}
         EditorToolLargeButton(tool: .shape, isSelected: false) {}
     }

@@ -12,10 +12,9 @@ import Foundation
 public enum EditorTool: String, CaseIterable, Identifiable, Codable, Sendable {
     // Basic tools
     case selection
-    case move
+    case pan
     
     // Drawing tools
-    case pen
     case highlighter
     case line
     case arrow
@@ -48,8 +47,7 @@ public enum EditorTool: String, CaseIterable, Identifiable, Codable, Sendable {
     var displayName: String {
         switch self {
         case .selection: return "Select"
-        case .move: return "Pan"
-        case .pen: return "Pen"
+        case .pan: return "Pan"
         case .highlighter: return "Highlighter"
         case .line: return "Line"
         case .arrow: return "Arrow"
@@ -72,26 +70,25 @@ public enum EditorTool: String, CaseIterable, Identifiable, Codable, Sendable {
     }
     
     /// Human-readable description used in tooltips and the status bar.
-    var toolDescription: String {
+        var toolDescription: String {
         switch self {
-        case .selection:  return "Select and resize annotations. Shift-click to multi-select. Press Delete to remove."
-        case .move:       return "Pan the canvas view. Hold Space for temporary pan mode."
-        case .pen:        return "Draw freehand strokes with your current colour and line width."
-        case .highlighter: return "Draw semi-transparent highlight strokes over content."
-        case .line:       return "Draw a straight line between two points."
-        case .arrow:      return "Draw an arrow pointing to a region of interest."
-        case .shape:      return "Insert a predefined shape (rectangle or ellipse)."
+        case .selection:  return "Select and resize annotations. Shift-click to multi-select. Press Delete to remove. Shortcut: V"
+        case .pan:       return "Pan the canvas view. Hold Space for temporary pan mode. Shortcut: M"
+        case .highlighter: return "Draw semi-transparent highlight strokes over content. Shortcut: H"
+        case .line:       return "Draw a straight line between two points. Shortcut: L"
+        case .arrow:      return "Draw an arrow pointing to a region of interest. Shortcut: A"
+        case .shape:      return "Insert a predefined shape (rectangle or ellipse). Shortcut: S"
         case .rectangle:  return "Draw a filled or outlined rectangle."
         case .ellipse:    return "Draw a filled or outlined ellipse or circle."
-        case .text:       return "Add a text label anywhere on the canvas."
-        case .blur:       return "Brush a Gaussian blur over sensitive content."
+        case .text:       return "Add a text label anywhere on the canvas. Shortcut: T"
+        case .blur:       return "Brush a Gaussian blur over sensitive content. Shortcut: B"
         case .spotlight:  return "Dim everything outside a region to focus attention."
-        case .crop:       return "Crop the image to a selected rectangular region."
+        case .crop:       return "Crop the image to a selected rectangular region. Shortcut: R"
         case .callout:    return "Add a speech-bubble callout with a pointer tail."
         case .step:       return "Insert an auto-numbered step marker for instructions."
         case .stamp:      return "Place a predefined stamp icon on the image."
-        case .eraser:     return "Erase drawn strokes and annotations."
-        case .magnify:    return "Zoom into a region for detailed inspection."
+        case .eraser:     return "Erase drawn strokes and annotations. Shortcut: E"
+        case .magnify:    return "Zoom into a region for detailed inspection. Shortcut: Z"
         case .freehand:   return "Draw freehand paths with full curve control."
         case .highlight:  return "Highlight content with a semi-transparent colour overlay."
         case .pixelate:   return "Pixelate a region to obscure sensitive content."
@@ -101,8 +98,7 @@ public enum EditorTool: String, CaseIterable, Identifiable, Codable, Sendable {
     var icon: String {
         switch self {
         case .selection: return "arrow.up.left.and.arrow.down.right"
-        case .move: return "move.3d"
-        case .pen: return "pencil"
+        case .pan: return "move.3d"
         case .highlighter: return "highlighter"
         case .line: return "line.diagonal"
         case .arrow: return "arrow.up.right"
