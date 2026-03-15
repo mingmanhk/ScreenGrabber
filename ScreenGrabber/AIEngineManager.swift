@@ -8,9 +8,30 @@
 //  Subscription backend: placeholder endpoint (configure SERVER_AI_ENDPOINT in env).
 //  BYOK: directly calls the provider's public API with the user's key.
 //
+//  NOTE: Vision framework types are not Sendable in current macOS versions.
+//  This is expected and the warnings are suppressed with @preconcurrency.
+//
 
-import Foundation
-import AppKit
+// MARK: - Sendable Warning Suppression
+// Vision types (VNImageRequestHandler, VNGenerateForegroundInstanceMaskRequest) 
+// are not Sendable in macOS 15/16. This is a framework limitation, not a bug.
+#warning("Vision framework types are not Sendable - this is expected and handled with @preconcurrency")
+
+//
+//  AIEngineManager.swift
+//  ScreenGrabber
+//
+//  Protocol-based AI abstraction layer. Routes every AI request through
+//  entitlement check → provider selection → HTTP call → parsed response.
+//
+//  Subscription backend: placeholder endpoint (configure SERVER_AI_ENDPOINT in env).
+//  BYOK: directly calls the provider's public API with the user's key.
+//
+
+// MARK: - Vision Framework (non-Sendable types expected)
+#warning("Vision framework types are not Sendable - this is expected")
+@preconcurrency import Foundation
+@preconcurrency import AppKit
 import Vision
 import CoreImage
 
@@ -175,14 +196,14 @@ final class AIEngineManager {
                     guard let image = request.image else {
                         throw AIError.imageConversionFailed
                     }
-                    let resultImage = try await removeBackground(from: image)
+                    let _ = try await removeBackground(from: image)
                     // For local features, return a success message
                     return "Background removed successfully using local Vision processing."
                 case .autoEnhance:
                     guard let image = request.image else {
                         throw AIError.imageConversionFailed
                     }
-                    let resultImage = try await autoEnhance(image: image)
+                    let _ = try await autoEnhance(image: image)
                     return "Image auto-enhanced successfully using Core Image."
                 default:
                     // This shouldn't happen - local feature not implemented

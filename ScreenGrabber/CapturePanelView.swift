@@ -299,7 +299,6 @@ case .clipboard:
         
         
         // Error handling setup
-        var captureError: Error?
         
     return await withCheckedContinuation { continuation in
             task.terminationHandler = { _ in
@@ -329,7 +328,6 @@ case .clipboard:
         
         
         // Error handling setup
-        var captureError: Error?
         
     return await withCheckedContinuation { continuation in
             task.terminationHandler = { _ in
