@@ -468,40 +468,30 @@ final class AIEngineManager {
         
         // Try VNGenerateForegroundInstanceMaskRequest (macOS 14+)
         if #available(macOS 14.0, *) {
-            
-            return try await withCheckedThrowingContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    let request = VNGenerateForegroundInstanceMaskRequest()
-                    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-
-                    do {
-                        try handler.perform([request])
-                        guard let maskResult = request.results?.first else {
-                            continuation.resume(throwing: AIError.parseError("No foreground mask generated"))
-                            return
-                        }
-                        
-                        // Apply mask to create transparent background
-                        let maskBuffer = try maskResult.generateMaskedImage(
-                            ofInstances: maskResult.allInstances,
-                            from: handler,
-                            croppedToInstancesExtent: false
-                        )
-                        
-                        let maskedCIImage = CIImage(cvPixelBuffer: maskBuffer)
-                        let context = CIContext()
-                        guard let maskedCGImage = context.createCGImage(maskedCIImage, from: maskedCIImage.extent) else {
-                            continuation.resume(throwing: AIError.parseError("Failed to create masked image"))
-                            return
-                        }
-                        
-                        let maskedNSImage = NSImage(cgImage: maskedCGImage, size: image.size)
-                        continuation.resume(returning: maskedNSImage)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
+            return try await Task.detached(priority: .userInitiated) {
+                let request = VNGenerateForegroundInstanceMaskRequest()
+                let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+                
+                try handler.perform([request])
+                guard let maskResult = request.results?.first else {
+                    throw AIError.parseError("No foreground mask generated")
                 }
-            }
+                
+                // Apply mask to create transparent background
+                let maskBuffer = try maskResult.generateMaskedImage(
+                    ofInstances: maskResult.allInstances,
+                    from: handler,
+                    croppedToInstancesExtent: false
+                )
+                
+                let maskedCIImage = CIImage(cvPixelBuffer: maskBuffer)
+                let context = CIContext()
+                guard let maskedCGImage = context.createCGImage(maskedCIImage, from: maskedCIImage.extent) else {
+                    throw AIError.parseError("Failed to create masked image")
+                }
+                
+                return NSImage(cgImage: maskedCGImage, size: image.size)
+            }.value
         } else {
             // Fallback: use AI API for background removal description
             throw AIError.parseError("Background removal requires macOS 14 or later")
